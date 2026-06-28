@@ -1130,6 +1130,15 @@ function updateHome(){
   if(uBruto>0)alerts+=`<div class="alert alert-green">💰 ${rendasM.length} registro${rendasM.length>1?'s':''} de renda extra — líquido <strong>${fmt(uLiq)}</strong></div>`;
   if(parcTot>0&&S.perfil.salario>0){const pct=Math.round(parcTot/S.perfil.salario*100);alerts+=`<div class="alert alert-amber" onclick="navTo('parc')" style="cursor:pointer">💳 <strong>${fmt(parcTot)}</strong> em parcelas (${pct}% do salário) ›</div>`;}
   S.cartoes.forEach(c=>{const u=limiteUsado(c.id);if(c.limite>0&&u/c.limite>=0.8){const b=getBanco(c.bancoId);alerts+=`<div class="alert alert-red" onclick="navTo('cartoes')" style="cursor:pointer">⚠️ ${b?b.nome+' ':''}<strong>${c.nome}</strong> — ${Math.round(u/c.limite*100)}% do limite ›</div>`;}});
+  S.cartoes.forEach(c=>{
+    const rest=faturaRestante(c.id,curY,curM);
+    if(rest<=0)return;
+    const hoje=now.getDate();
+    const vencido=curY===now.getFullYear()&&curM===now.getMonth()&&hoje>c.venc;
+    if(!vencido)return;
+    const b=getBanco(c.bancoId);
+    alerts+=`<div class="alert alert-amber" onclick="navTo('cartoes')" style="cursor:pointer">💳 Fatura ${b?b.nome+' ':''}<strong>${c.nome}</strong> venceu com <strong>${fmt(rest)}</strong> em aberto ›</div>`;
+  });
   document.getElementById('home-alerts').innerHTML=alerts;
 
   // BUGFIX: era 'u.date', agora é 'r.date'
