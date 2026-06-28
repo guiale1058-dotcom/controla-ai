@@ -1684,6 +1684,38 @@ function openCartaoModal(bancoId){
   document.getElementById('ov-cartao').classList.add('open');
   setTimeout(initMasks,50);
 }
+let _pfCartaoId=null;
+function openPagarFatura(cid){
+  _pfCartaoId=cid;
+  const c=S.cartoes.find(x=>x.id===cid);
+  if(!c)return;
+  const b=S.bancos.find(x=>x.id===c.bancoId);
+  const fat=faturaCartao(cid,curY,curM);
+  const pago=totalPagoFatura(cid,curY,curM);
+  const rest=faturaRestante(cid,curY,curM);
+  document.getElementById('pf-nome').textContent=(b?b.nome+' ':'')+c.nome;
+  document.getElementById('pf-total').textContent=fmt(fat);
+  document.getElementById('pf-pago').textContent=fmt(pago);
+  document.getElementById('pf-rest').textContent=fmt(rest);
+  document.getElementById('pf-pago-row').style.display=pago>0?'flex':'none';
+  setMoneyVal('pf-val',rest);
+  document.getElementById('pf-data').value=new Date().toISOString().split('T')[0];
+  document.getElementById('ov-pagar-fatura').classList.add('open');
+  setTimeout(initMasks,50);
+}
+function salvarPagamentoFatura(){
+  const val=getMoneyVal('pf-val');
+  const date=document.getElementById('pf-data').value;
+  if(!val||val<=0||!date){showToast('Preencha o valor e a data');return;}
+  const c=S.cartoes.find(x=>x.id===_pfCartaoId);
+  if(!c)return;
+  const b=S.bancos.find(x=>x.id===c.bancoId);
+  S.tx.push({id:S.nid++,type:'pagamento_fatura',cartaoId:_pfCartaoId,val,date,desc:'Pagamento Fatura '+(b?b.nome+' ':'')+c.nome});
+  saveState();
+  closeOv('ov-pagar-fatura');
+  refreshAll();
+  showToast('💳 Pagamento de '+fmt(val)+' registrado');
+}
 function openParcModal(){
   document.getElementById('p-inicio').value=now.toISOString().slice(0,7);
   document.getElementById('p-desc').value='';
