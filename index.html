@@ -1053,6 +1053,8 @@ function getMonthRenda(){return S.renda.filter(r=>{const d=new Date(r.date+'T12:
 function faturaCartao(cid,y,m){return S.tx.filter(t=>{if(t.cartaoId!==cid||t.type!=='expense')return false;const d=new Date(t.date+'T12:00');return d.getFullYear()===y&&d.getMonth()===m}).reduce((s,t)=>s+t.val,0)}
 function limiteUsado(cid){return faturaCartao(cid,curY,curM)}
 function getTxCartao(cid){return S.tx.filter(t=>{if(t.cartaoId!==cid||t.type!=='expense')return false;const d=new Date(t.date+'T12:00');return d.getFullYear()===curY&&d.getMonth()===curM}).length}
+function totalPagoFatura(cid,y,m){return S.tx.filter(t=>t.type==='pagamento_fatura'&&t.cartaoId===cid&&(()=>{const d=new Date(t.date+'T12:00');return d.getFullYear()===y&&d.getMonth()===m})()).reduce((s,t)=>s+t.val,0)}
+function faturaRestante(cid,y,m){return Math.max(0,faturaCartao(cid,y,m)-totalPagoFatura(cid,y,m))}
 
 // ── RENDER HOME ────────────────────────────────────
 function updateHome(){
