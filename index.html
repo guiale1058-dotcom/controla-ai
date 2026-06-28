@@ -192,6 +192,10 @@ body{
 .cc-badge{font-size:11px;padding:4px 10px;border-radius:20px;font-weight:600;letter-spacing:.2px}
 .prog-wrap{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;margin-bottom:4px}
 .prog-bar{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.pf-resumo{background:var(--bg3);border-radius:var(--rs);padding:12px 14px;margin-bottom:16px;display:flex;flex-direction:column;gap:6px}
+.pf-resumo-row{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.pf-resumo-lbl{color:var(--text2)}
+.pf-resumo-val{font-weight:600}
 .cc-fatura{
   background:var(--bg3);border-radius:10px;
   padding:12px;display:flex;justify-content:space-between;
@@ -874,6 +878,21 @@ body{
     <div class="fg"><label>Fechamento da fatura (dia)</label><input id="c-fecha" type="number" inputmode="numeric" placeholder="3" min="1" max="31"/></div>
     <button class="bpri" onclick="saveCartao()">Salvar cartão</button>
     <button class="bcan" onclick="closeOv('ov-cartao')">Cancelar</button>
+  </div>
+</div>
+
+<div class="ov" id="ov-pagar-fatura">
+  <div class="mdl"><div class="mdl-handle"></div>
+    <h2>Pagar Fatura — <span id="pf-nome"></span></h2>
+    <div class="pf-resumo">
+      <div class="pf-resumo-row"><span class="pf-resumo-lbl">Fatura total</span><span class="pf-resumo-val" id="pf-total"></span></div>
+      <div class="pf-resumo-row" id="pf-pago-row"><span class="pf-resumo-lbl">Já pago</span><span class="pf-resumo-val" style="color:var(--teal)" id="pf-pago"></span></div>
+      <div class="pf-resumo-row"><span class="pf-resumo-lbl">Restante</span><span class="pf-resumo-val" style="color:var(--red)" id="pf-rest"></span></div>
+    </div>
+    <div class="fg"><label>Valor do pagamento (R$)</label><div class="money-input-wrap"><input id="pf-val" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
+    <div class="fg"><label>Data</label><input id="pf-data" type="date"/></div>
+    <button class="bpri" onclick="salvarPagamentoFatura()">Confirmar pagamento</button>
+    <button class="bcan" onclick="closeOv('ov-pagar-fatura')">Cancelar</button>
   </div>
 </div>
 
@@ -1817,7 +1836,7 @@ function finishOnboarding(){
 }
 
 // FECHAR MODAL CLICANDO FORA
-['ov-main','ov-tx','ov-edit-tx','ov-renda','ov-edit-renda','ov-parc','ov-edit-parc','ov-banco','ov-cartao','ov-config'].forEach(id=>{
+['ov-main','ov-tx','ov-edit-tx','ov-renda','ov-edit-renda','ov-parc','ov-edit-parc','ov-banco','ov-cartao','ov-pagar-fatura','ov-config'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('click',e=>{if(e.target===el)closeOv(id);});
 });
