@@ -1191,6 +1191,10 @@ function renderCartoes(){
       const fat=faturaCartao(c.id,curY,curM);
       const hoje=now.getDate();
       const vencBreve=curY===now.getFullYear()&&curM===now.getMonth()&&c.venc>=hoje&&c.venc<=hoje+5;
+      const pago=totalPagoFatura(c.id,curY,curM);
+      const rest=faturaRestante(c.id,curY,curM);
+      const fatQuitada=fat>0&&rest===0;
+      const fatVencida=rest>0&&curY===now.getFullYear()&&curM===now.getMonth()&&hoje>c.venc;
       return`<div class="cartao-card" style="margin:0 12px 10px;border-color:${banco.cor}22">
         <div class="cc-top">
           <div>
@@ -1210,13 +1214,18 @@ function renderCartoes(){
         <div class="cc-fatura">
           <div>
             <div style="font-size:12px;color:var(--text2)">Fatura de ${MN[curM]}</div>
-            ${vencBreve?'<div style="font-size:11px;color:var(--amber)">⚠️ Vence em breve (dia '+c.venc+')</div>':''}
+            ${vencBreve&&rest>0?'<div style="font-size:11px;color:var(--amber)">⚠️ Vence em breve (dia '+c.venc+')</div>':''}
+            ${fatVencida?'<div style="font-size:11px;color:var(--red)">🔴 Em aberto após vencimento</div>':''}
           </div>
           <div style="text-align:right">
             <div style="font-size:17px;font-weight:700;color:${pct>=80?'var(--red)':'var(--text)'}">${fmt(fat)}</div>
             <div style="font-size:11px;color:var(--text3)">${getTxCartao(c.id)} compra${getTxCartao(c.id)!==1?'s':''}</div>
           </div>
         </div>
+        ${pago>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:0 2px;margin-top:6px"><span style="color:var(--text2)">Já pago</span><span style="color:var(--teal);font-weight:600">${fmt(pago)}</span></div>`:''}
+        ${rest>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:0 2px;margin-top:4px"><span style="color:var(--text2)">A pagar</span><span style="color:var(--red);font-weight:700">${fmt(rest)}</span></div>`:''}
+        ${fatQuitada?`<div style="text-align:center;font-size:12px;color:var(--green);font-weight:600;margin-top:8px">✅ Fatura quitada</div>`:''}
+        ${fat>0&&rest>0?`<button class="add-btn" style="margin:8px 0 0;width:100%;background:linear-gradient(135deg,var(--purple2),var(--teal));border:none;color:#fff" onclick="event.stopPropagation();openPagarFatura(${c.id})">💳 Pagar fatura</button>`:''}
       </div>`;
     }).join('');
 
