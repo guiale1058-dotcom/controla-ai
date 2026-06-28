@@ -948,12 +948,6 @@ function getBancoLogo(nome,cor){
 
 const EMPTY_STATE={perfil:{nome:'',salario:0,saldoInicial:0},bancos:[],cartoes:[],tx:[],renda:[],parcs:[],nid:1};
 
-function getBancoLogo(nome,cor,size){
-  size=size||40;
-  if(BANK_LOGOS[nome])return BANK_LOGOS[nome];
-  const ini=nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-  return `<svg viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="12" fill="${cor}"/><text x="20" y="27" text-anchor="middle" font-family="Arial" font-weight="900" font-size="14" fill="white">${ini}</text></svg>`;
-}
 function loadState(){
   try{
     const r=localStorage.getItem(KEY);
