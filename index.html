@@ -664,6 +664,7 @@ body{
         <button class="ftag" onclick="setFiltro('despesa',this)">Despesas</button>
         <button class="ftag" onclick="setFiltro('renda',this)">Renda Extra</button>
         <button class="ftag" onclick="setFiltro('parcela',this)">Parcelas</button>
+        <button class="ftag" onclick="setFiltro('cartao',this)">Cartão</button>
       </div>
       <div id="grafico-cats" style="margin-bottom:14px"></div>
       <div id="txlist2"></div>
@@ -1385,8 +1386,8 @@ function renderTxPage(){
       all.push({date:t.date,html:txRow(c.ic,c.c+'22',t.desc,c.n,'+'+fmt(t.val),'var(--green)',ds,t.id,'tx')});
     });
   }
-  if(_filtroTx==='todos'||_filtroTx==='despesa'){
-    txs.filter(t=>t.type==='expense').forEach(t=>{
+  if(_filtroTx==='todos'||_filtroTx==='despesa'||_filtroTx==='cartao'){
+    txs.filter(t=>t.type==='expense'&&(_filtroTx!=='cartao'||t.cartaoId)).forEach(t=>{
       const c=getCat(t.cat);const ct=t.cartaoId?getCartao(t.cartaoId):null;const b=ct?getBanco(ct.bancoId):null;
       const sub=ct?'💳 '+(b?b.nome+' · ':'')+ct.nome:c.n;
       const d=new Date(t.date+'T12:00');
@@ -1410,6 +1411,14 @@ function renderTxPage(){
       const d=new Date(dt+'T12:00');
       const ds=d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0');
       all.push({date:dt,html:txRow('💳','rgba(251,146,60,.15)',p.desc,'Parcela '+(p.pagas+1)+'/'+p.nparc,'-'+fmt(inf.pv),'var(--coral)',ds,p.id,'parc')});
+    });
+  }
+  if(_filtroTx==='todos'||_filtroTx==='cartao'){
+    txs.filter(t=>t.type==='pagamento_fatura').forEach(t=>{
+      const ct=getCartao(t.cartaoId);const b=ct?getBanco(ct.bancoId):null;
+      const d=new Date(t.date+'T12:00');
+      const ds=d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0');
+      all.push({date:t.date,html:txRow('💳','rgba(6,182,212,.15)',t.desc,'Fatura · pagamento','-'+fmt(t.val),'var(--teal)',ds,t.id,'tx')});
     });
   }
 
