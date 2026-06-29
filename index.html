@@ -908,6 +908,35 @@ body{
   </div>
 </div>
 
+<div class="ov" id="ov-edit-banco">
+  <div class="mdl"><div class="mdl-handle"></div>
+    <h2>Editar banco</h2>
+    <div class="fg"><label>Nome</label><input id="eb-nome" placeholder="Nome do banco"/></div>
+    <div class="fg"><label>Cor</label><input type="color" id="eb-cor" style="width:100%;height:44px;border:none;border-radius:var(--rs);cursor:pointer;background:none"/></div>
+    <button class="bpri" onclick="saveEditBanco()">Salvar alterações</button>
+    <button class="bdanger" onclick="deleteEditBanco()">Excluir banco</button>
+    <button class="bcan" onclick="closeOv('ov-edit-banco')">Cancelar</button>
+  </div>
+</div>
+
+<div class="ov" id="ov-edit-cartao">
+  <div class="mdl"><div class="mdl-handle"></div>
+    <h2>Editar cartão</h2>
+    <div class="fg"><label>Nome do cartão</label><input id="ec-nome" placeholder="Ex: Euro Card, Gold…"/></div>
+    <div class="fg"><label>Bandeira</label>
+      <select id="ec-band"><option>Visa</option><option>Mastercard</option><option>Elo</option><option>Amex</option><option>Hipercard</option></select>
+    </div>
+    <div class="fg"><label>Limite (R$)</label><div class="money-input-wrap"><input id="ec-limite" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
+    <div class="row2">
+      <div class="fg"><label>Vencimento (dia)</label><input id="ec-venc" type="number" inputmode="numeric" min="1" max="31"/></div>
+      <div class="fg"><label>Fechamento (dia)</label><input id="ec-fecha" type="number" inputmode="numeric" min="1" max="31"/></div>
+    </div>
+    <button class="bpri" onclick="saveEditCartao()">Salvar alterações</button>
+    <button class="bdanger" onclick="deleteEditCartao()">Excluir cartão</button>
+    <button class="bcan" onclick="closeOv('ov-edit-cartao')">Cancelar</button>
+  </div>
+</div>
+
 <script>
 const MN=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const CATS=[
@@ -1070,9 +1099,37 @@ function getMthParcs(y,m){
 function getMthParcTot(y,m){return getMthParcs(y,m).reduce((s,p)=>s+p.total/p.nparc,0)}
 function getMonthTx(){return S.tx.filter(t=>{const d=new Date(t.date+'T12:00');return d.getFullYear()===curY&&d.getMonth()===curM})}
 function getMonthRenda(){return S.renda.filter(r=>{const d=new Date(r.date+'T12:00');return d.getFullYear()===curY&&d.getMonth()===curM})}
-function faturaCartao(cid,y,m){return S.tx.filter(t=>{if(t.cartaoId!==cid||t.type!=='expense')return false;const d=new Date(t.date+'T12:00');return d.getFullYear()===y&&d.getMonth()===m}).reduce((s,t)=>s+t.val,0)}
-function limiteUsado(cid){return faturaCartao(cid,curY,curM)}
-function getTxCartao(cid){return S.tx.filter(t=>{if(t.cartaoId!==cid||t.type!=='expense')return false;const d=new Date(t.date+'T12:00');return d.getFullYear()===curY&&d.getMonth()===curM}).length}
+function txBillingMonth(t,fecha){
+  const d=new Date(t.date+'T12:00');
+  let stY=d.getFullYear(),stM=d.getMonth();
+  if(d.getDate()>fecha){stM++;if(stM>11){stM=0;stY++;}}
+  return{stY,stM};
+}
+function faturaCartao(cid,y,m){
+  const c=getCartao(cid);const fecha=c?(c.fecha||1):1;
+  return S.tx.filter(t=>{
+    if(t.cartaoId!==cid||t.type!=='expense')return false;
+    const{stY,stM}=txBillingMonth(t,fecha);
+    return stY===y&&stM===m;
+  }).reduce((s,t)=>s+t.val,0);
+}
+function getBillingYM(c){
+  let fatY=curY,fatM=curM;
+  const isCurrentMonth=curY===now.getFullYear()&&curM===now.getMonth();
+  if(isCurrentMonth&&now.getDate()>(c.fecha||1)){fatM++;if(fatM>11){fatM=0;fatY++;}}
+  return{fatY,fatM};
+}
+function limiteUsado(cid){const c=getCartao(cid);if(!c)return faturaCartao(cid,curY,curM);const{fatY,fatM}=getBillingYM(c);return faturaCartao(cid,fatY,fatM);}
+function getTxCartao(cid){
+  const c=getCartao(cid);if(!c)return 0;
+  const fecha=c.fecha||1;
+  const{fatY,fatM}=getBillingYM(c);
+  return S.tx.filter(t=>{
+    if(t.cartaoId!==cid||t.type!=='expense')return false;
+    const{stY,stM}=txBillingMonth(t,fecha);
+    return stY===fatY&&stM===fatM;
+  }).length;
+}
 function totalPagoFatura(cid,y,m){return S.tx.filter(t=>t.type==='pagamento_fatura'&&t.cartaoId===cid&&(()=>{const d=new Date(t.date+'T12:00');return d.getFullYear()===y&&d.getMonth()===m})()).reduce((s,t)=>s+t.val,0)}
 function faturaRestante(cid,y,m){return Math.max(0,faturaCartao(cid,y,m)-totalPagoFatura(cid,y,m))}
 
@@ -1085,20 +1142,22 @@ function updateHome(){
   const uCusto=rendasM.reduce((s,r)=>s+(r.custo||0),0);
   const uLiq=uBruto-uCusto;
   const desp=txs.filter(t=>t.type==='expense'&&!t.cartaoId).reduce((s,t)=>s+t.val,0);
+  const despCard=S.tx.filter(t=>{if(t.type!=='expense'||!t.cartaoId)return false;const ct=getCartao(t.cartaoId);const{stY,stM}=txBillingMonth(t,ct?(ct.fecha||1):1);return stY===curY&&stM===curM;}).reduce((s,t)=>s+t.val,0);
   const fatPago=txs.filter(t=>t.type==='pagamento_fatura').reduce((s,t)=>s+t.val,0);
   const parcTot=getMthParcTot(curY,curM);
 
   // SALDO UNIFICADO: saldo inicial + tudo que entrou - tudo que saiu
+  // despCard não entra no saldo (cartão reduz caixa ao pagar a fatura, via fatPago)
   const saldoInicial=S.perfil.saldoInicial||0;
   const saldoAtual=saldoInicial + rec + uLiq - desp - parcTot - fatPago;
 
   // Para o card de resumo do mês (entradas e saídas do mês)
   const entradas=rec+uLiq;
-  const saidas=desp+parcTot+fatPago;
+  const saidas=desp+despCard+parcTot+fatPago;
 
   document.getElementById('t-rec').textContent=fmt(rec);
   document.getElementById('t-uber').textContent=fmt(uLiq);
-  document.getElementById('t-desp').textContent=fmt(desp);
+  document.getElementById('t-desp').textContent=fmt(desp+despCard);
   document.getElementById('t-parc').textContent=fmt(parcTot);
 
   const sel=document.getElementById('saldo');
@@ -1187,7 +1246,7 @@ function renderCartoes(){
   lista.innerHTML=S.bancos.map(banco=>{
     const cs=S.cartoes.filter(c=>c.bancoId===banco.id);
     const ini=banco.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-    const fatTotal=cs.reduce((s,c)=>s+faturaCartao(c.id,curY,curM),0);
+    const fatTotal=cs.reduce((s,c)=>{const{fatY,fatM}=getBillingYM(c);return s+faturaCartao(c.id,fatY,fatM);},0);
     const limTotal=cs.reduce((s,c)=>s+c.limite,0);
     const usadoTotal=cs.reduce((s,c)=>s+limiteUsado(c.id),0);
     const pctTotal=limTotal>0?Math.min(100,Math.round(usadoTotal/limTotal*100)):0;
@@ -1195,16 +1254,17 @@ function renderCartoes(){
     const fatChipT=pctTotal>=80?'var(--red)':pctTotal>=60?'var(--amber)':'var(--text2)';
 
     const cartaoCards=cs.map(c=>{
+      const{fatY,fatM}=getBillingYM(c);
       const usado=limiteUsado(c.id);
       const pct=c.limite>0?Math.min(100,Math.round(usado/c.limite*100)):0;
       const barC=pct>=80?'#f87171':pct>=60?'#fbbf24':banco.cor;
-      const fat=faturaCartao(c.id,curY,curM);
+      const fat=faturaCartao(c.id,fatY,fatM);
       const hoje=now.getDate();
-      const vencBreve=curY===now.getFullYear()&&curM===now.getMonth()&&c.venc>=hoje&&c.venc<=hoje+5;
-      const pago=totalPagoFatura(c.id,curY,curM);
-      const rest=faturaRestante(c.id,curY,curM);
+      const vencBreve=fatY===now.getFullYear()&&fatM===now.getMonth()&&c.venc>=hoje&&c.venc<=hoje+5;
+      const pago=totalPagoFatura(c.id,fatY,fatM);
+      const rest=faturaRestante(c.id,fatY,fatM);
       const fatQuitada=fat>0&&rest===0;
-      const fatVencida=rest>0&&curY===now.getFullYear()&&curM===now.getMonth()&&hoje>c.venc;
+      const fatVencida=rest>0&&fatY===now.getFullYear()&&fatM===now.getMonth()&&hoje>c.venc;
       return`<div class="cartao-card" style="margin:0 12px 10px;border-color:${banco.cor}22">
         <div class="cc-top">
           <div>
@@ -1223,7 +1283,7 @@ function renderCartoes(){
         </div>
         <div class="cc-fatura">
           <div>
-            <div style="font-size:12px;color:var(--text2)">Fatura de ${MN[curM]}</div>
+            <div style="font-size:12px;color:var(--text2)">Fatura de ${MN[fatM]}</div>
             ${vencBreve&&rest>0?'<div style="font-size:11px;color:var(--amber)">⚠️ Vence em breve (dia '+c.venc+')</div>':''}
             ${fatVencida?'<div style="font-size:11px;color:var(--red)">🔴 Em aberto após vencimento</div>':''}
           </div>
@@ -1396,9 +1456,23 @@ function renderTxPage(){
     });
   }
   if(_filtroTx==='todos'||_filtroTx==='despesa'||_filtroTx==='cartao'){
-    txs.filter(t=>t.type==='expense'&&(_filtroTx!=='cartao'||t.cartaoId)).forEach(t=>{
-      const c=getCat(t.cat);const ct=t.cartaoId?getCartao(t.cartaoId):null;const b=ct?getBanco(ct.bancoId):null;
-      const sub=ct?'💳 '+(b?b.nome+' · ':'')+ct.nome:c.n;
+    // Despesas sem cartão: pelo mês da data raw
+    if(_filtroTx!=='cartao'){
+      txs.filter(t=>t.type==='expense'&&!t.cartaoId).forEach(t=>{
+        const c=getCat(t.cat);const d=new Date(t.date+'T12:00');
+        const ds=d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0');
+        all.push({date:t.date,html:txRow(c.ic,c.c+'22',t.desc,c.n,'-'+fmt(t.val),'var(--red)',ds,t.id,'tx')});
+      });
+    }
+    // Despesas de cartão: pelo mês de faturamento (igual à aba Cartões)
+    S.tx.filter(t=>{
+      if(t.type!=='expense'||!t.cartaoId)return false;
+      const ct=getCartao(t.cartaoId);
+      const{stY,stM}=txBillingMonth(t,ct?(ct.fecha||1):1);
+      return stY===curY&&stM===curM;
+    }).forEach(t=>{
+      const c=getCat(t.cat);const ct=getCartao(t.cartaoId);const b=ct?getBanco(ct.bancoId):null;
+      const sub='💳 '+(b?b.nome+' · ':'')+ct.nome;
       const d=new Date(t.date+'T12:00');
       const ds=d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0');
       all.push({date:t.date,html:txRow(c.ic,c.c+'22',t.desc,sub,'-'+fmt(t.val),'var(--red)',ds,t.id,'tx')});
@@ -1436,7 +1510,10 @@ function renderTxPage(){
   // Gráfico de pizza por categoria (só despesas)
   const grafEl=document.getElementById('grafico-cats');
   if(_filtroTx==='todos'||_filtroTx==='despesa'){
-    const despesas=txs.filter(t=>t.type==='expense');
+    const despesas=[
+      ...txs.filter(t=>t.type==='expense'&&!t.cartaoId),
+      ...S.tx.filter(t=>{if(t.type!=='expense'||!t.cartaoId)return false;const ct=getCartao(t.cartaoId);const{stY,stM}=txBillingMonth(t,ct?(ct.fecha||1):1);return stY===curY&&stM===curM;})
+    ];
     if(despesas.length){
       const porCat={};
       despesas.forEach(t=>{
@@ -1841,9 +1918,9 @@ function selecionarBanco(idx){
   document.getElementById('banco-outro-wrap').style.display=banco.nome==='Outro'?'block':'none';
 }
 function saveBanco(){
-  if(!bancoSelecionado){alert('Selecione um banco.');return;}
+  if(!bancoSelecionado){showToast('Selecione um banco.');return;}
   let nome=bancoSelecionado.nome;
-  if(nome==='Outro'){nome=document.getElementById('b-nome-custom').value.trim();if(!nome){alert('Digite o nome do banco.');return;}}
+  if(nome==='Outro'){nome=document.getElementById('b-nome-custom').value.trim();if(!nome){showToast('Digite o nome do banco.');return;}}
   const cor=bancoSelecionado.cor;
   S.bancos.push({id:S.nid++,nome,cor});
   saveState();closeOv('ov-banco');renderCartoes();
@@ -1895,7 +1972,7 @@ function finishOnboarding(){
 }
 
 // FECHAR MODAL CLICANDO FORA
-['ov-main','ov-tx','ov-edit-tx','ov-renda','ov-edit-renda','ov-parc','ov-edit-parc','ov-banco','ov-cartao','ov-pagar-fatura','ov-config'].forEach(id=>{
+['ov-main','ov-tx','ov-edit-tx','ov-renda','ov-edit-renda','ov-parc','ov-edit-parc','ov-banco','ov-cartao','ov-pagar-fatura','ov-config','ov-edit-banco','ov-edit-cartao'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('click',e=>{if(e.target===el)closeOv(id);});
 });
