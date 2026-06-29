@@ -1417,6 +1417,20 @@ function renderRenda(){
 }
 
 // ── RENDER PARCELAS ────────────────────────────────
+function toggleParcDetail(id){
+  const all=document.querySelectorAll('.parc-detail');
+  const allToggles=document.querySelectorAll('.parc-toggle');
+  all.forEach((el,i)=>{
+    if(el.dataset.id==id){
+      const isOpen=el.classList.contains('open');
+      el.classList.toggle('open',!isOpen);
+      allToggles[i].classList.toggle('open',!isOpen);
+    } else {
+      el.classList.remove('open');
+      allToggles[i].classList.remove('open');
+    }
+  });
+}
 function renderParcs(){
   const lista=document.getElementById('parc-lista');
   const tl=document.getElementById('parc-tl');
