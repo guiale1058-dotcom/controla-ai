@@ -1231,6 +1231,17 @@ function txRow(ic,bg,desc,sub,amt,amtC,dt,id,kind){
 }
 
 // ── RENDER CARTÕES ─────────────────────────────────
+function addLongPress(el,cb){
+  let t=null;
+  const start=()=>{t=setTimeout(()=>{if(navigator.vibrate)navigator.vibrate(30);cb();},500);};
+  const cancel=()=>{clearTimeout(t);};
+  el.addEventListener('touchstart',start,{passive:true});
+  el.addEventListener('touchend',cancel);
+  el.addEventListener('touchmove',cancel,{passive:true});
+  el.addEventListener('mousedown',start);
+  el.addEventListener('mouseup',cancel);
+  el.addEventListener('mouseleave',cancel);
+}
 function renderCartoes(){
   const tL=S.cartoes.reduce((s,c)=>s+c.limite,0);
   const tU=S.cartoes.reduce((s,c)=>s+limiteUsado(c.id),0);
@@ -1265,7 +1276,7 @@ function renderCartoes(){
       const rest=faturaRestante(c.id,fatY,fatM);
       const fatQuitada=fat>0&&rest===0;
       const fatVencida=rest>0&&fatY===now.getFullYear()&&fatM===now.getMonth()&&hoje>c.venc;
-      return`<div class="cartao-card" style="margin:0 12px 10px;border-color:${banco.cor}22">
+      return`<div class="cartao-card" data-id="${c.id}" style="margin:0 12px 10px;border-color:${banco.cor}22">
         <div class="cc-top">
           <div>
             <div class="cc-nome">${c.nome}</div>
@@ -1320,6 +1331,14 @@ function renderCartoes(){
       </div>
     </div>`;
   }).join('');
+  S.bancos.forEach(banco=>{
+    const trigger=lista.querySelector('#banco-item-'+banco.id+' .banco-trigger');
+    if(trigger)addLongPress(trigger,()=>openEditBanco(banco.id));
+    S.cartoes.filter(c=>c.bancoId===banco.id).forEach(c=>{
+      const card=lista.querySelector('.cartao-card[data-id="'+c.id+'"]');
+      if(card)addLongPress(card,()=>openEditCartao(c.id));
+    });
+  });
 }
 
 function toggleBanco(id){
