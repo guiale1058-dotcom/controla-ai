@@ -1466,30 +1466,42 @@ function renderParcs(){
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-top:4px">
         <span>${p.pagas} de ${p.nparc} pagas</span><span>${inf.rest} restantes</span>
       </div>
+      <div class="parc-toggle" onclick="toggleParcDetail(${p.id})">
+        <span class="parc-toggle-arrow">▶</span>
+        <span>Ver parcelas</span>
+      </div>
+    </div>
+    <div class="parc-detail" data-id="${p.id}">
+      <div style="padding:10px 4px 4px">
+        ${(()=>{
+          const[sy,sm]=p.inicio.split('-').map(Number);
+          const pv=inf.pv;
+          let rows='';
+          for(let i=0;i<p.nparc;i++){
+            const totalM=sy*12+(sm-1)+i;
+            const iY=Math.floor(totalM/12);
+            const iM=totalM%12;
+            const isCur=iY===curY&&iM===curM;
+            const isPaid=i<p.pagas;
+            const icon=isPaid?'✅':'⏳';
+            const cls='parc-item'+(isCur?' is-current':'');
+            const valCls=isPaid?'paid':isCur?'due':'future';
+            rows+=`<div class="${cls}">
+              <span class="parc-item-icon">${icon}</span>
+              <div class="parc-item-info">
+                <div class="parc-item-mes">${MN[iM]}/${String(iY).slice(2)}</div>
+                <div class="parc-item-num">Parcela ${i+1}/${p.nparc}${isCur?' · mês atual':''}</div>
+              </div>
+              <span class="parc-item-val ${valCls}">${isPaid?'':'-'}${fmt(pv)}</span>
+            </div>`;
+          }
+          return rows;
+        })()}
+      </div>
     </div>`;
   }).join('');
 
-  const tlMs=[];
-  for(let i=0;i<18;i++){
-    const d=new Date(now.getFullYear(),now.getMonth()+i,1);
-    const y=d.getFullYear(),m=d.getMonth();
-    const mp=getMthParcs(y,m);
-    if(mp.length)tlMs.push({y,m,mp,tot:mp.reduce((s,p)=>s+p.total/p.nparc,0)});
-  }
-  const maxT=Math.max(...tlMs.map(x=>x.tot),1);
-  tl.innerHTML='<div class="tl-wrap"><div class="sec-t">Linha do tempo (18 meses)</div>'+
-    tlMs.map(({y,m,mp,tot})=>`
-      <div style="margin-bottom:12px">
-        <div style="font-size:12px;color:var(--text2);margin-bottom:5px">${MN[m]}/${String(y).slice(2)} — ${fmt(tot)}</div>
-        ${mp.map((p,i)=>{
-          const inf=parcInfo(p);
-          const w=Math.round(inf.pv/maxT*100);
-          const c=PCOLORS[i%PCOLORS.length];
-          const[sy,sm]=p.inicio.split('-').map(Number);
-          const pn=y*12+m-(sy*12+sm-1)+1;
-          return`<div class="tl-bar-row"><div class="tl-bname">${p.desc}</div><div class="tl-bbg"><div class="tl-bfill" style="width:${w}%;background:${c}"><span class="tl-bval">${w>25?fmt(inf.pv):''}</span></div></div><div class="tl-bext">${pn}/${p.nparc}</div></div>`;
-        }).join('')}
-      </div>`).join('')+'</div>';
+  tl.innerHTML='';
 }
 
 // ── RENDER LANÇAMENTOS ─────────────────────────────
