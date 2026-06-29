@@ -232,6 +232,24 @@ body{
 .tl-bval{font-size:10px;color:#fff;font-weight:600}
 .tl-bext{font-size:10px;color:var(--text3);min-width:48px;text-align:right}
 
+/* ── PARC ACCORDION ─────────────────────────── */
+.parc-toggle{display:flex;justify-content:center;align-items:center;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--text3);cursor:pointer;user-select:none}
+.parc-toggle-arrow{transition:transform .3s;display:inline-block}
+.parc-toggle.open .parc-toggle-arrow{transform:rotate(90deg)}
+.parc-detail{max-height:0;overflow:hidden;transition:max-height .35s ease}
+.parc-detail.open{max-height:800px}
+.parc-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.parc-item:last-child{border-bottom:none}
+.parc-item.is-current{background:rgba(251,191,36,.08);border-radius:var(--rs);padding:8px 10px;margin:0 -10px;border-bottom:none}
+.parc-item-icon{font-size:14px;flex-shrink:0}
+.parc-item-info{flex:1;min-width:0}
+.parc-item-mes{font-size:12px;color:var(--text2)}
+.parc-item-num{font-size:11px;color:var(--text3)}
+.parc-item-val{font-size:13px;font-weight:600;flex-shrink:0}
+.parc-item-val.paid{color:var(--green)}
+.parc-item-val.due{color:var(--amber)}
+.parc-item-val.future{color:var(--text3)}
+
 /* ── RENDA EXTRA ────────────────────────────── */
 .renda-card{
   background:var(--bg2);border-radius:var(--r);
