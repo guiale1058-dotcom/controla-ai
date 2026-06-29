@@ -1925,6 +1925,29 @@ function saveBanco(){
   S.bancos.push({id:S.nid++,nome,cor});
   saveState();closeOv('ov-banco');renderCartoes();
 }
+function openEditBanco(id){
+  _editId=id;
+  const b=S.bancos.find(x=>x.id===id);if(!b)return;
+  document.getElementById('eb-nome').value=b.nome;
+  document.getElementById('eb-cor').value=b.cor||'#8b5cf6';
+  document.getElementById('ov-edit-banco').classList.add('open');
+}
+function saveEditBanco(){
+  const b=S.bancos.find(x=>x.id===_editId);if(!b)return;
+  const nome=document.getElementById('eb-nome').value.trim();
+  if(!nome){showToast('Informe o nome do banco.');return;}
+  b.nome=nome;
+  b.cor=document.getElementById('eb-cor').value;
+  saveState();closeOv('ov-edit-banco');renderCartoes();
+}
+function deleteEditBanco(){
+  if(S.cartoes.some(c=>c.bancoId===_editId)){
+    showToast('Remova os cartões deste banco antes de excluí-lo.');return;
+  }
+  if(!confirm('Excluir este banco?'))return;
+  S.bancos=S.bancos.filter(x=>x.id!==_editId);
+  saveState();closeOv('ov-edit-banco');renderCartoes();
+}
 function saveCartao(){
   const bancoId=parseInt(document.getElementById('c-banco').value);
   const nome=document.getElementById('c-nome').value.trim();
