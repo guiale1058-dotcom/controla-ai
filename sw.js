@@ -1,4 +1,4 @@
-const CACHE = 'controla-ai-v4';
+const CACHE = 'controla-ai-v6';
 const FILES = ['./index.html','./manifest.json','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install', e => {
