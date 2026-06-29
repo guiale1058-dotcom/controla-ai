@@ -1959,6 +1959,35 @@ function saveCartao(){
   S.cartoes.push({id:S.nid++,bancoId,nome,bandeira,limite,venc,fecha});
   saveState();closeOv('ov-cartao');renderCartoes();
 }
+function openEditCartao(id){
+  _editId=id;
+  const c=S.cartoes.find(x=>x.id===id);if(!c)return;
+  document.getElementById('ec-nome').value=c.nome;
+  document.getElementById('ec-band').value=c.bandeira||'Visa';
+  setMoneyVal('ec-limite',c.limite);
+  document.getElementById('ec-venc').value=c.venc;
+  document.getElementById('ec-fecha').value=c.fecha;
+  document.getElementById('ov-edit-cartao').classList.add('open');
+  setTimeout(initMasks,50);
+}
+function saveEditCartao(){
+  const c=S.cartoes.find(x=>x.id===_editId);if(!c)return;
+  const nome=document.getElementById('ec-nome').value.trim();
+  if(!nome){showToast('Informe o nome do cartão.');return;}
+  c.nome=nome;
+  c.bandeira=document.getElementById('ec-band').value;
+  const limite=getMoneyVal('ec-limite');
+  if(limite>0)c.limite=limite;
+  c.venc=parseInt(document.getElementById('ec-venc').value)||c.venc;
+  c.fecha=parseInt(document.getElementById('ec-fecha').value)||c.fecha;
+  saveState();closeOv('ov-edit-cartao');renderCartoes();
+}
+function deleteEditCartao(){
+  if(!confirm('Excluir este cartão? As despesas vinculadas serão mantidas no histórico.'))return;
+  S.tx.filter(t=>t.cartaoId===_editId).forEach(t=>delete t.cartaoId);
+  S.cartoes=S.cartoes.filter(x=>x.id!==_editId);
+  saveState();closeOv('ov-edit-cartao');renderCartoes();updateHome();
+}
 function saveConfig(){
   S.perfil.nome=document.getElementById('cfg-nome').value.trim();
   S.perfil.salario=getMoneyVal('cfg-sal');
