@@ -264,6 +264,13 @@ body{
 .legend-name{flex:1;color:var(--text2)}
 .legend-val{font-weight:700}
 
+/* ── HOME CHART ─────────────────────────── */
+.home-chart-card{background:var(--bg2);border-radius:var(--rc);padding:14px 16px}
+.home-chart-title{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px}
+.home-chart-body{display:flex;flex-direction:column;align-items:center;gap:12px}
+.home-chart-legend{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;width:100%}
+.home-chart-legend .legend-row{font-size:11px}
+
 /* ── RESUMO ANUAL ───────────────────────────── */
 .anual-month{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .anual-label{font-size:11px;color:var(--text2);width:28px;flex-shrink:0;font-weight:600}
@@ -611,6 +618,7 @@ body{
       </div>
     </div>
     <div id="saldo-disp-wrap" class="sec"></div>
+    <div id="home-chart" class="sec"></div>
     <div class="sec">
       <div id="home-alerts"></div>
       <div class="sec-t" style="display:flex;justify-content:space-between;align-items:center">
@@ -1142,6 +1150,72 @@ function getTxCartao(cid){
 function totalPagoFatura(cid,y,m){return S.tx.filter(t=>t.type==='pagamento_fatura'&&t.cartaoId===cid&&(()=>{const d=new Date(t.date+'T12:00');return d.getFullYear()===y&&d.getMonth()===m})()).reduce((s,t)=>s+t.val,0)}
 function faturaRestante(cid,y,m){return Math.max(0,faturaCartao(cid,y,m)-totalPagoFatura(cid,y,m))}
 
+function renderHomeChart(){
+  const el=document.getElementById('home-chart');
+  const diretas=getMonthTx().filter(t=>t.type==='expense'&&!t.cartaoId);
+  const cartao=S.tx.filter(t=>{
+    if(t.type!=='expense'||!t.cartaoId)return false;
+    const ct=getCartao(t.cartaoId);
+    const{stY,stM}=txBillingMonth(t,ct?(ct.fecha||1):1);
+    return stY===curY&&stM===curM;
+  });
+  const despesas=[...diretas,...cartao];
+  if(!despesas.length){el.innerHTML='';return;}
+
+  const porCat={};
+  despesas.forEach(t=>{
+    const c=getCat(t.cat);
+    porCat[c.id]=porCat[c.id]||{n:c.n,c:c.c,ic:c.ic,v:0};
+    porCat[c.id].v+=t.val;
+  });
+  const total=despesas.reduce((s,t)=>s+t.val,0);
+  const cats=Object.values(porCat).sort((a,b)=>b.v-a.v);
+
+  const size=200,cx=100,cy=100,r=88,ri=54;
+  if(cats.length===1){
+    el.innerHTML=`<div class="home-chart-card">
+    <div class="home-chart-title">Despesas por categoria — ${MN[curM]}/${curY}</div>
+    <div class="home-chart-body">
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex-shrink:0">
+        <circle cx="${cx}" cy="${cy}" r="71" fill="none" stroke="${cats[0].c}" stroke-width="34" opacity="0.85"/>
+        <text x="${cx}" y="${cy-6}" text-anchor="middle" font-size="11" fill="var(--text3)">Total</text>
+        <text x="${cx}" y="${cy+13}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--text)">${fmt(total)}</text>
+      </svg>
+      <div class="home-chart-legend">
+        <div class="legend-row"><div class="legend-dot" style="background:${cats[0].c}"></div><span class="legend-name">${cats[0].ic} ${cats[0].n}</span><span class="legend-val">100%</span></div>
+      </div>
+    </div>
+  </div>`;
+    return;
+  }
+  let ang=-Math.PI/2;
+  const slices=cats.map(cat=>{
+    const pct=cat.v/total;
+    const start=ang;ang+=pct*Math.PI*2;const end=ang;
+    const x1=cx+r*Math.cos(start),y1=cy+r*Math.sin(start);
+    const x2=cx+r*Math.cos(end),y2=cy+r*Math.sin(end);
+    const xi1=cx+ri*Math.cos(start),yi1=cy+ri*Math.sin(start);
+    const xi2=cx+ri*Math.cos(end),yi2=cy+ri*Math.sin(end);
+    const large=pct>0.5?1:0;
+    const path=`M${xi1},${yi1} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} L${xi2},${yi2} A${ri},${ri} 0 ${large},0 ${xi1},${yi1} Z`;
+    return{path,c:cat.c,n:cat.n,ic:cat.ic,pct:Math.round(pct*100)};
+  });
+
+  el.innerHTML=`<div class="home-chart-card">
+    <div class="home-chart-title">Despesas por categoria — ${MN[curM]}/${curY}</div>
+    <div class="home-chart-body">
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex-shrink:0">
+        ${slices.map(s=>`<path d="${s.path}" fill="${s.c}" opacity="0.85"/>`).join('')}
+        <text x="${cx}" y="${cy-6}" text-anchor="middle" font-size="11" fill="var(--text3)">Total</text>
+        <text x="${cx}" y="${cy+13}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--text)">${fmt(total)}</text>
+      </svg>
+      <div class="home-chart-legend">
+        ${cats.map(cat=>`<div class="legend-row"><div class="legend-dot" style="background:${cat.c}"></div><span class="legend-name">${cat.ic} ${cat.n}</span><span class="legend-val">${Math.round(cat.v/total*100)}%</span></div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
 // ── RENDER HOME ────────────────────────────────────
 function updateHome(){
   const txs=getMonthTx();
@@ -1232,6 +1306,7 @@ function updateHome(){
     const sub=ct?'💳 '+(b?b.nome+' · ':'')+ct.nome:c.n;
     return txRow(c.ic,c.c+'22',t.desc,sub,(t.type==='income'?'+':'-')+fmt(t.val),t.type==='income'?'var(--green)':'var(--red)',ds,t.id,'tx');
   }).join('');
+  renderHomeChart();
 }
 
 function txRow(ic,bg,desc,sub,amt,amtC,dt,id,kind){
