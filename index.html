@@ -93,13 +93,13 @@ body{
 .bal-card::before{
   content:'';position:absolute;top:-60px;right:-40px;
   width:180px;height:180px;border-radius:50%;
-  background:radial-gradient(circle,rgba(37,99,235,.18) 0%,transparent 70%);
+  background:radial-gradient(circle,var(--glow-a) 0%,transparent 70%);
   pointer-events:none;
 }
 .bal-card::after{
   content:'';position:absolute;bottom:-40px;left:-20px;
   width:140px;height:140px;border-radius:50%;
-  background:radial-gradient(circle,rgba(6,182,212,.1) 0%,transparent 70%);
+  background:radial-gradient(circle,var(--glow-b) 0%,transparent 70%);
   pointer-events:none;
 }
 .bal-lbl{font-size:11px;color:#93c5fd;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;font-weight:600}
@@ -109,6 +109,7 @@ body{
   background:rgba(255,255,255,.05);
   backdrop-filter:blur(10px);
   border:1px solid rgba(255,255,255,.07);
+  border-left:3px solid var(--chip-c,transparent);
   border-radius:10px;padding:10px 12px;
   cursor:pointer;transition:all .2s;
 }
@@ -616,12 +617,12 @@ body{
     </div>
     <div class="bal-card">
       <div class="bal-lbl">Saldo atual</div>
-      <div class="bal-val" id="saldo">R$ 0,00</div>
+      <div class="bal-val text-gradient" id="saldo">R$ 0,00</div>
       <div class="bal-row">
-        <div class="mc" onclick="navTo('tx')"><div class="l">Receitas do mês <span class="arr">›</span></div><div class="v" id="t-rec" style="color:var(--green)">R$ 0,00</div></div>
-        <div class="mc" onclick="navTo('renda')"><div class="l">Renda extra <span class="arr">›</span></div><div class="v" id="t-uber" style="color:var(--teal)">R$ 0,00</div></div>
-        <div class="mc" onclick="navTo('tx')"><div class="l">Despesas <span class="arr">›</span></div><div class="v" id="t-desp" style="color:var(--red)">R$ 0,00</div></div>
-        <div class="mc" onclick="navTo('parc')"><div class="l">Parcelas <span class="arr">›</span></div><div class="v" id="t-parc" style="color:var(--coral)">R$ 0,00</div></div>
+        <div class="mc" style="--chip-c:var(--green)" onclick="navTo('tx')"><div class="l">Receitas do mês <span class="arr">›</span></div><div class="v" id="t-rec" style="color:var(--green)">R$ 0,00</div></div>
+        <div class="mc" style="--chip-c:var(--teal)" onclick="navTo('renda')"><div class="l">Renda extra <span class="arr">›</span></div><div class="v" id="t-uber" style="color:var(--teal)">R$ 0,00</div></div>
+        <div class="mc" style="--chip-c:var(--red)" onclick="navTo('tx')"><div class="l">Despesas <span class="arr">›</span></div><div class="v" id="t-desp" style="color:var(--red)">R$ 0,00</div></div>
+        <div class="mc" style="--chip-c:var(--coral)" onclick="navTo('parc')"><div class="l">Parcelas <span class="arr">›</span></div><div class="v" id="t-parc" style="color:var(--coral)">R$ 0,00</div></div>
       </div>
     </div>
     <div id="saldo-disp-wrap" class="sec"></div>
