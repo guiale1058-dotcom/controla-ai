@@ -616,6 +616,7 @@ body{
       </div>
     </div>
     <div class="bal-card">
+      <div id="ai-badge-wrap"></div>
       <div class="bal-lbl">Saldo atual</div>
       <div class="bal-val text-gradient" id="saldo">R$ 0,00</div>
       <div class="bal-row">
@@ -1123,6 +1124,29 @@ function getMthParcs(y,m){
   });
 }
 function getMthParcTot(y,m){return getMthParcs(y,m).reduce((s,p)=>s+p.total/p.nparc,0)}
+function despesasDoMes(y,m){
+  const txsMes=S.tx.filter(t=>{const d=new Date(t.date+'T12:00');return d.getFullYear()===y&&d.getMonth()===m});
+  const desp=txsMes.filter(t=>t.type==='expense'&&!t.cartaoId).reduce((s,t)=>s+t.val,0);
+  const despCard=S.tx.filter(t=>{
+    if(t.type!=='expense'||!t.cartaoId)return false;
+    const ct=getCartao(t.cartaoId);
+    const{stY,stM}=txBillingMonth(t,ct?(ct.fecha||1):1);
+    return stY===y&&stM===m;
+  }).reduce((s,t)=>s+t.val,0);
+  const parcTot=getMthParcTot(y,m);
+  return desp+despCard+parcTot;
+}
+function calcInsight(){
+  const py=curM===0?curY-1:curY;
+  const pm=curM===0?11:curM-1;
+  const atual=despesasDoMes(curY,curM);
+  const anterior=despesasDoMes(py,pm);
+  if(anterior<=0)return null;
+  const pct=Math.round((atual-anterior)/anterior*100);
+  if(pct===0)return null;
+  const dir=pct>0?'a mais':'a menos';
+  return `Você gastou ${Math.abs(pct)}% ${dir} que no mês passado`;
+}
 function getMonthTx(){return S.tx.filter(t=>{const d=new Date(t.date+'T12:00');return d.getFullYear()===curY&&d.getMonth()===curM})}
 function getMonthRenda(){return S.renda.filter(r=>{const d=new Date(r.date+'T12:00');return d.getFullYear()===curY&&d.getMonth()===curM})}
 function txBillingMonth(t,fecha){
@@ -1276,6 +1300,8 @@ function updateHome(){
   const hr=now.getHours();
   const greet=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
   document.getElementById('hdr-saudacao').textContent=nome?(greet+', '+nome.split(' ')[0]):'Finanças';
+  const insight=calcInsight();
+  document.getElementById('ai-badge-wrap').innerHTML=insight?`<div class="ai-badge">🤖 ${insight}</div>`:'';
 
   // Saldo disponível = mesmo valor unificado, com breakdown
   const sdWrap=document.getElementById('saldo-disp-wrap');
