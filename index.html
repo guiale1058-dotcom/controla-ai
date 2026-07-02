@@ -619,6 +619,7 @@ body{
       <div id="ai-badge-wrap"></div>
       <div class="bal-lbl">Saldo atual</div>
       <div class="bal-val text-gradient" id="saldo">R$ 0,00</div>
+      <div id="bal-sparkline"></div>
       <div class="bal-row">
         <div class="mc" style="--chip-c:var(--green)" onclick="navTo('tx')"><div class="l">Receitas do mês <span class="arr">›</span></div><div class="v" id="t-rec" style="color:var(--green)">R$ 0,00</div></div>
         <div class="mc" style="--chip-c:var(--teal)" onclick="navTo('renda')"><div class="l">Renda extra <span class="arr">›</span></div><div class="v" id="t-uber" style="color:var(--teal)">R$ 0,00</div></div>
@@ -1147,6 +1148,53 @@ function calcInsight(){
   const dir=pct>0?'a mais':'a menos';
   return `Você gastou ${Math.abs(pct)}% ${dir} que no mês passado`;
 }
+
+function calcSparklineData(){
+  const dias=new Date(curY,curM+1,0).getDate();
+  const eventos=[];
+  getMonthTx().forEach(t=>{
+    if(t.type==='income')eventos.push({data:t.date,val:t.val});
+    else if(t.type==='expense'&&!t.cartaoId)eventos.push({data:t.date,val:-t.val});
+    else if(t.type==='pagamento_fatura')eventos.push({data:t.date,val:-t.val});
+  });
+  S.tx.filter(t=>t.type==='expense'&&t.cartaoId).forEach(t=>{
+    const ct=getCartao(t.cartaoId);
+    const{stY,stM}=txBillingMonth(t,ct?(ct.fecha||1):1);
+    if(stY===curY&&stM===curM)eventos.push({data:t.date,val:-t.val});
+  });
+  getMonthRenda().forEach(r=>eventos.push({data:r.date,val:r.val-(r.custo||0)}));
+  getMthParcs(curY,curM).forEach(p=>{
+    const dataParc=curY+'-'+(curM+1).toString().padStart(2,'0')+'-01';
+    eventos.push({data:dataParc,val:-(p.total/p.nparc)});
+  });
+  const porDia=new Array(dias+1).fill(0);
+  eventos.forEach(e=>{
+    const d=new Date(e.data+'T12:00').getDate();
+    porDia[d]+=e.val;
+  });
+  let acumulado=S.perfil.saldoInicial||0;
+  const pontos=[acumulado];
+  for(let d=1;d<=dias;d++){
+    acumulado+=porDia[d];
+    pontos.push(acumulado);
+  }
+  return pontos;
+}
+
+function renderSparkline(){
+  const el=document.getElementById('bal-sparkline');
+  if(!el)return;
+  const pontos=calcSparklineData();
+  if(pontos.length<3){el.innerHTML='';return}
+  const min=Math.min(...pontos),max=Math.max(...pontos);
+  const range=(max-min)||1;
+  const w=280,h=32;
+  const step=w/(pontos.length-1);
+  const path=pontos.map((v,i)=>`${(i*step).toFixed(1)},${(h-((v-min)/range)*h).toFixed(1)}`).join(' ');
+  const corLinha=pontos[pontos.length-1]>=pontos[0]?'#22d3ee':'#f87171';
+  el.innerHTML=`<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:32px;margin:2px 0 10px"><polyline points="${path}" fill="none" stroke="${corLinha}" stroke-width="2"/></svg>`;
+}
+
 function getMonthTx(){return S.tx.filter(t=>{const d=new Date(t.date+'T12:00');return d.getFullYear()===curY&&d.getMonth()===curM})}
 function getMonthRenda(){return S.renda.filter(r=>{const d=new Date(r.date+'T12:00');return d.getFullYear()===curY&&d.getMonth()===curM})}
 function txBillingMonth(t,fecha){
@@ -1302,6 +1350,7 @@ function updateHome(){
   document.getElementById('hdr-saudacao').textContent=nome?(greet+', '+nome.split(' ')[0]):'Finanças';
   const insight=calcInsight();
   document.getElementById('ai-badge-wrap').innerHTML=insight?`<div class="ai-badge">🤖 ${insight}</div>`:'';
+  renderSparkline();
 
   // Saldo disponível = mesmo valor unificado, com breakdown
   const sdWrap=document.getElementById('saldo-disp-wrap');
