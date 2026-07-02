@@ -1157,16 +1157,12 @@ function calcSparklineData(){
     else if(t.type==='expense'&&!t.cartaoId)eventos.push({data:t.date,val:-t.val});
     else if(t.type==='pagamento_fatura')eventos.push({data:t.date,val:-t.val});
   });
-  S.tx.filter(t=>t.type==='expense'&&t.cartaoId).forEach(t=>{
-    const ct=getCartao(t.cartaoId);
-    const{stY,stM}=txBillingMonth(t,ct?(ct.fecha||1):1);
-    if(stY===curY&&stM===curM)eventos.push({data:t.date,val:-t.val});
-  });
   getMonthRenda().forEach(r=>eventos.push({data:r.date,val:r.val-(r.custo||0)}));
   getMthParcs(curY,curM).forEach(p=>{
     const dataParc=curY+'-'+(curM+1).toString().padStart(2,'0')+'-01';
     eventos.push({data:dataParc,val:-(p.total/p.nparc)});
   });
+  if(eventos.length<3)return null;
   const porDia=new Array(dias+1).fill(0);
   eventos.forEach(e=>{
     const d=new Date(e.data+'T12:00').getDate();
@@ -1185,7 +1181,7 @@ function renderSparkline(){
   const el=document.getElementById('bal-sparkline');
   if(!el)return;
   const pontos=calcSparklineData();
-  if(pontos.length<3){el.innerHTML='';return}
+  if(!pontos){el.innerHTML='';return}
   const min=Math.min(...pontos),max=Math.max(...pontos);
   const range=(max-min)||1;
   const w=280,h=32;
