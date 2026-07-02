@@ -121,7 +121,6 @@ body{
 
 /* ── GLASS & NEON UTILITIES ─────────────────── */
 .text-gradient{background:linear-gradient(135deg,#ffffff,#c7d2fe);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.chip{border-left:3px solid var(--chip-c,transparent)}
 .ai-badge{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,#7c3aed,#2563eb);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;color:#fff;margin-bottom:10px;box-shadow:0 4px 14px rgba(124,58,237,.4)}
 
 /* ── SALDO DISPONÍVEL ───────────────────────── */
@@ -1338,6 +1337,7 @@ function updateHome(){
   const sel=document.getElementById('saldo');
   sel.textContent=fmt(saldoAtual);
   sel.style.color=saldoAtual>=0?'#e8e8e8':'#f87171';
+  sel.classList.toggle('text-gradient',saldoAtual>=0);
   if(!localStorage.getItem('controla_fatura_v2')){localStorage.setItem('controla_fatura_v2','1');showToast('💡 Modelo de cartão atualizado: fatura paga separadamente do saldo');}
 
   const nome=S.perfil.nome;
