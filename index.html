@@ -50,6 +50,15 @@ body::before{
 .onb-hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px 20px;text-align:center}
 .onb-icon{font-size:64px;margin-bottom:24px;filter:drop-shadow(0 0 24px rgba(167,139,250,.5))}
 #confetti-canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:600;display:none}
+.avatar{position:relative;border-radius:50%;background:linear-gradient(135deg,#7c8cff,#22d3ee);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex:none}
+.avatar-face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;letter-spacing:.3px}
+.avatar-face img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar-sm{width:34px;height:34px;font-size:13px}
+.avatar-lg{width:78px;height:78px;font-size:27px;cursor:pointer;box-shadow:0 6px 20px rgba(124,140,255,.35)}
+.avatar-cam{position:absolute;right:-2px;bottom:-2px;width:26px;height:26px;border-radius:50%;background:var(--bg3);border:2px solid var(--bg2);display:flex;align-items:center;justify-content:center;font-size:12px;z-index:1}
+.profile-head{display:flex;flex-direction:column;align-items:center;gap:9px;margin-bottom:14px}
+.foto-remove{background:none;border:none;color:var(--text2);text-shadow:0 1px 4px rgba(8,8,16,.5);font-size:12px;cursor:pointer;font-family:inherit}
+.hdr-left{display:flex;align-items:center;gap:10px;min-width:0}
 .onb-title{font-size:26px;font-weight:700;margin-bottom:12px;line-height:1.3;letter-spacing:-.3px}
 .onb-sub{font-size:15px;color:var(--text2);line-height:1.7}
 .onb-body{padding:0 20px}
@@ -619,7 +628,7 @@ body::before{
   <!-- INÍCIO -->
   <div id="pg-home" class="pg active">
     <div class="hdr">
-      <h1 id="hdr-saudacao">Finanças</h1>
+      <div class="hdr-left"><span class="avatar avatar-sm" id="hdr-avatar" style="display:none"><span class="avatar-face" id="hdr-avatar-face"></span></span><h1 id="hdr-saudacao">Finanças</h1></div>
       <div class="mnav">
         <button onclick="chM(-1)">‹</button>
         <span id="mlbl"></span>
@@ -716,6 +725,14 @@ body::before{
     <div class="sec">
       <div class="sec-t">Perfil</div>
       <div class="card">
+        <div class="profile-head">
+          <div class="avatar avatar-lg" id="cfg-avatar" onclick="document.getElementById('foto-input').click()" title="Alterar foto">
+            <span class="avatar-face" id="cfg-avatar-face"></span>
+            <span class="avatar-cam">📷</span>
+          </div>
+          <input type="file" id="foto-input" accept="image/*" style="display:none" onchange="onFotoSelected(this)">
+          <button class="foto-remove" id="foto-remove" style="display:none" onclick="removeFoto()">Remover foto</button>
+        </div>
         <div class="config-row"><span class="config-lbl">Nome</span><span class="config-val" id="cfg-nome-val">—</span></div>
         <div class="config-row"><span class="config-lbl">Salário mensal</span><span class="config-val" id="cfg-sal-val">—</span></div>
         <div class="config-row"><span class="config-lbl">Saldo inicial (conta)</span><span class="config-val" id="cfg-saldo-val">—</span></div>
@@ -1034,7 +1051,7 @@ function getBancoLogo(nome,cor){
 }
 
 
-const EMPTY_STATE={perfil:{nome:'',salario:0,saldoInicial:0},bancos:[],cartoes:[],tx:[],renda:[],parcs:[],nid:1};
+const EMPTY_STATE={perfil:{nome:'',salario:0,saldoInicial:0,foto:''},bancos:[],cartoes:[],tx:[],renda:[],parcs:[],nid:1};
 
 function loadState(){
   try{
@@ -1068,6 +1085,40 @@ function saveState(){
 }
 function isFirstTime(){return!localStorage.getItem(KEY+'_done')&&!localStorage.getItem('financeiro_v2_done')}
 function markDone(){localStorage.setItem(KEY+'_done','1')}
+
+// ── FOTO DE PERFIL ─────────────────────────────
+function profileInitials(){
+  const n=(S.perfil.nome||'').trim();
+  if(!n)return '';
+  const p=n.split(/\s+/);
+  return (p[0][0]+(p.length>1?p[p.length-1][0]:'')).toUpperCase();
+}
+function paintAvatar(faceEl){
+  if(!faceEl)return;
+  const f=S.perfil.foto;
+  if(f){faceEl.innerHTML='<img src="'+f+'" alt="">';}
+  else{const ini=profileInitials();faceEl.textContent=ini||'👤';}
+}
+function onFotoSelected(input){
+  const file=input.files&&input.files[0];
+  input.value='';
+  if(!file||!/^image\//.test(file.type))return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const size=240,c=document.createElement('canvas');c.width=size;c.height=size;
+      const ctx=c.getContext('2d');
+      const s=Math.min(img.width,img.height),sx=(img.width-s)/2,sy=(img.height-s)/2;
+      ctx.drawImage(img,sx,sy,s,s,0,0,size,size);
+      S.perfil.foto=c.toDataURL('image/jpeg',0.85);
+      saveState();renderConfig();updateHome();
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function removeFoto(){S.perfil.foto='';saveState();renderConfig();updateHome();}
 
 let S=loadState();
 let curY=now.getFullYear(),curM=now.getMonth();
@@ -1356,6 +1407,9 @@ function updateHome(){
   const hr=now.getHours();
   const greet=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
   document.getElementById('hdr-saudacao').textContent=nome?(greet+', '+nome.split(' ')[0]):'Finanças';
+  const hdrAv=document.getElementById('hdr-avatar');
+  if(S.perfil.foto||nome){paintAvatar(document.getElementById('hdr-avatar-face'));hdrAv.style.display='inline-flex';}
+  else{hdrAv.style.display='none';}
   const insight=calcInsight();
   document.getElementById('ai-badge-wrap').innerHTML=insight?`<div class="ai-badge">🤖 ${insight}</div>`:'';
   renderSparkline();
@@ -1790,6 +1844,8 @@ function renderTxPage(){
 // ── RENDER CONFIG ──────────────────────────────────
 function renderConfig(){
   const p=S.perfil;
+  paintAvatar(document.getElementById('cfg-avatar-face'));
+  document.getElementById('foto-remove').style.display=p.foto?'block':'none';
   document.getElementById('cfg-nome-val').textContent=p.nome||'—';
   document.getElementById('cfg-sal-val').textContent=p.salario>0?fmt(p.salario):'—';
   document.getElementById('cfg-saldo-val').textContent=p.saldoInicial>0?fmt(p.saldoInicial):'—';
