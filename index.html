@@ -36,10 +36,15 @@ body{
   background:var(--bg);color:var(--text);
   min-height:100vh;min-height:100dvh;
 }
-.app{max-width:430px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--bg);overflow:hidden}
+/* Fundo fixo do app (imagem + overlay escuro p/ legibilidade) */
+body::before{
+  content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(rgba(8,8,16,.22),rgba(8,8,16,.24)),url(bg.jpg) center top/cover no-repeat;
+}
+.app{max-width:430px;margin:0 auto;min-height:100vh;min-height:100dvh;background:transparent;overflow:hidden}
 
 /* ── ONBOARDING ─────────────────────────────── */
-.onb{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;max-width:430px;margin:0 auto}
+.onb{position:fixed;inset:0;background:transparent;z-index:500;display:flex;flex-direction:column;max-width:430px;margin:0 auto}
 .onb-step{display:none;flex-direction:column;flex:1;padding:0 0 max(32px,env(safe-area-inset-bottom))}
 .onb-step.active{display:flex}
 .onb-hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px 20px;text-align:center}
