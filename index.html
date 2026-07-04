@@ -2139,8 +2139,20 @@ function hideLockScreen(){document.getElementById('lock-screen').classList.remov
 async function submitPin(){
   const el=document.getElementById('lock-pin');
   const err=document.getElementById('lock-err');
+  const btn=document.querySelector('#lock-screen .bpri[onclick="submitPin()"]');
   const l=loadLock();
   if(!l){enterApp();return;}
+  const wait=LockCore.delayForAttempt(_pinFails);
+  if(wait>0){
+    let left=Math.ceil(wait/1000);
+    if(btn)btn.disabled=true;
+    err.textContent=`Aguarde ${left}s`;
+    await new Promise(res=>{
+      const iv=setInterval(()=>{left--;err.textContent=left>0?`Aguarde ${left}s`:'';
+        if(left<=0){clearInterval(iv);res();}},1000);
+    });
+    if(btn)btn.disabled=false;
+  }
   const ok=await LockCore.pbkdf2Verify(el.value||'',l.pinHash,l.pinSalt,l.pinIters||PBKDF2_ITERS);
   if(ok){_pinFails=0;enterApp();}
   else{_pinFails++;el.value='';err.textContent='PIN incorreto';}
