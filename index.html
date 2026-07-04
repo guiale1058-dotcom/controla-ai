@@ -2556,6 +2556,18 @@ if(isFirstTime()){
 }else{
   enterApp();
 }
+let _bgAt=0;
+function _onHide(){_bgAt=Date.now();}
+function _onShow(){
+  if(document.visibilityState!=='visible')return;
+  if(lockEnabled()&&!document.getElementById('lock-screen').classList.contains('open')
+     &&_bgAt&&(Date.now()-_bgAt)>RELOCK_MS){
+    showLockScreen();
+  }
+}
+document.addEventListener('visibilitychange',()=>{document.visibilityState==='hidden'?_onHide():_onShow();});
+window.addEventListener('pagehide',_onHide);
+window.addEventListener('pageshow',_onShow);
 </script>
 
 <script src="lock-core.js"></script>
