@@ -1746,13 +1746,14 @@ function renderParcs(){
     const inf=parcInfo(p);
     const pct=Math.round(p.pagas/p.nparc*100);
     const cor=pct>=75?'var(--green)':pct>=40?'var(--amber)':'var(--blue)';
-    const tc=p.tipo==='cartao'?'rgba(96,165,250,.15)':'rgba(251,191,36,.15)';
-    const tt=p.tipo==='cartao'?'#60a5fa':'#fbbf24';
+    const TIPO_LBL={financiamento:'Financiamento',boleto:'Boleto',outro:'Outro',cartao:'Cartão'};
+    const tc=p.tipo==='financiamento'?'rgba(96,165,250,.15)':p.tipo==='outro'?'rgba(148,163,184,.15)':'rgba(251,191,36,.15)';
+    const tt=p.tipo==='financiamento'?'#60a5fa':p.tipo==='outro'?'#94a3b8':'#fbbf24';
     return`<div class="parc-card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div>
           <div style="font-size:16px;font-weight:500;margin-bottom:4px">${p.desc}</div>
-          <span style="font-size:11px;padding:2px 9px;border-radius:20px;background:${tc};color:${tt}">${p.tipo==='cartao'?'Cartão':'Boleto'}</span>
+          <span style="font-size:11px;padding:2px 9px;border-radius:20px;background:${tc};color:${tt}">${TIPO_LBL[p.tipo]||'Parcelado'}</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <div style="text-align:right">
@@ -1783,7 +1784,12 @@ function renderParcs(){
           const[sy,sm]=p.inicio.split('-').map(Number);
           const pv=inf.pv;
           let rows='';
-          for(let i=0;i<p.nparc;i++){
+          const curTotalM=curY*12+curM;
+          const curIndex=curTotalM-(sy*12+(sm-1));
+          const list=ParcelsCore.parcelaRows(p.nparc,p.pagas,curIndex,24);
+          for(const r of list){
+            if('gap' in r){rows+=`<div class="parc-item" style="justify-content:center;color:var(--text3);font-size:12px">⋯ +${r.gap} parcelas</div>`;continue;}
+            const i=r.i;
             const totalM=sy*12+(sm-1)+i;
             const iY=Math.floor(totalM/12);
             const iM=totalM%12;
