@@ -1066,6 +1066,7 @@ body::before{
   </div>
 </div>
 
+<script src="lock-core.js"></script>
 <script>
 const MN=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const CATS=[
@@ -2205,7 +2206,7 @@ async function submitPin(){
   else{_pinFails++;el.value='';err.textContent='PIN incorreto';}
 }
 document.addEventListener('keydown',e=>{
-  if(e.key==='Enter'&&document.getElementById('lock-screen').classList.contains('open'))submitPin();
+  if(e.key==='Enter'&&document.getElementById('lock-screen').classList.contains('open')&&!document.querySelector('.ov.open'))submitPin();
 });
 async function bioAvailable(){
   try{
@@ -2668,8 +2669,6 @@ document.addEventListener('visibilitychange',()=>{document.visibilityState==='hi
 window.addEventListener('pagehide',_onHide);
 window.addEventListener('pageshow',_onShow);
 </script>
-
-<script src="lock-core.js"></script>
 
 <script>
 if('serviceWorker' in navigator){
