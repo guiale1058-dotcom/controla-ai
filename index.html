@@ -876,8 +876,23 @@ body::before{
     <div class="fg"><label>Descrição</label><input id="f-desc" placeholder="Ex: Mercado, Salário…"/></div>
     <div class="fg"><label>Valor (R$)</label><div class="money-input-wrap"><input id="f-val" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
     <div class="fg"><label>Categoria</label><select id="f-cat"></select></div>
-    <div class="fg" id="fg-cartao" style="display:none"><label>Cartão usado</label><select id="f-cartao" onchange="toggleParcField()"></select></div>
-    <div class="fg" id="fg-parcelas" style="display:none"><label>Parcelado em</label><select id="f-parcelas"><option value="1">À vista</option><option value="2">2x</option><option value="3">3x</option><option value="4">4x</option><option value="5">5x</option><option value="6">6x</option><option value="7">7x</option><option value="8">8x</option><option value="9">9x</option><option value="10">10x</option><option value="11">11x</option><option value="12">12x</option><option value="15">15x</option><option value="18">18x</option><option value="24">24x</option></select></div>
+    <div class="fg" id="fg-forma" style="display:none"><label>Forma de pagamento</label>
+      <select id="f-forma" onchange="toggleForma()">
+        <option value="avista">À vista (dinheiro / Pix / débito)</option>
+        <option value="cartao">Cartão de crédito</option>
+        <option value="parcelado">Parcelado sem cartão (financiamento / boleto)</option>
+      </select>
+    </div>
+    <div class="fg" id="fg-cartao" style="display:none"><label>Cartão usado</label><select id="f-cartao"></select></div>
+    <div class="fg" id="fg-parcelas" style="display:none"><label>Nº de parcelas</label><input id="f-parcelas" type="number" inputmode="numeric" min="1" value="1" placeholder="1"/></div>
+    <div id="fg-parc-sub" style="display:none">
+      <div class="fg"><label>Tipo</label><select id="f-parc-tipo"><option value="financiamento">🏦 Financiamento</option><option value="boleto">🧾 Boleto</option><option value="outro">📦 Outro</option></select></div>
+      <div class="row2">
+        <div class="fg"><label>Nº de parcelas</label><input id="f-nparc" type="number" inputmode="numeric" min="2" placeholder="12" oninput="calcParcPrev()"/></div>
+        <div class="fg"><label>Já paguei</label><input id="f-pagas" type="number" inputmode="numeric" min="0" value="0" placeholder="0"/></div>
+      </div>
+      <div id="fg-parc-prev" style="background:var(--bg3);border-radius:var(--rs);padding:10px 12px;margin-bottom:13px;font-size:13px;color:var(--text2)">Parcela mensal: <strong id="f-parc-prev" style="color:var(--amber)">R$ 0,00</strong></div>
+    </div>
     <div class="fg"><label>Data</label><input id="f-date" type="date"/></div>
     <button class="bpri" onclick="saveTx()">Salvar</button>
     <button class="bcan" onclick="closeOv('ov-tx')">Cancelar</button>
@@ -2138,8 +2153,9 @@ function setTp(t){
   S.txType=t;
   document.getElementById('bt-inc').className='tbtn'+(t==='income'?' ai':'');
   document.getElementById('bt-exp').className='tbtn'+(t==='expense'?' ae':'');
-  document.getElementById('fg-cartao').style.display=t==='expense'?'block':'none';
-  if(t!=='expense')document.getElementById('fg-parcelas').style.display='none';
+  document.getElementById('fg-forma').style.display=t==='expense'?'block':'none';
+  if(t!=='expense'){document.getElementById('fg-cartao').style.display='none';document.getElementById('fg-parcelas').style.display='none';document.getElementById('fg-parc-sub').style.display='none';}
+  else toggleForma();
   const fc=t==='income'?CATS.filter(c=>['salario','outros'].includes(c.id)):CATS.filter(c=>c.id!=='salario');
   document.getElementById('f-cat').innerHTML=fc.map(c=>`<option value="${c.id}">${c.ic} ${c.n}</option>`).join('');
 }
@@ -2148,6 +2164,19 @@ function toggleParcField(){
   const fg=document.getElementById('fg-parcelas');
   fg.style.display=temCartao?'block':'none';
   if(!temCartao)document.getElementById('f-parcelas').value='1';
+}
+function toggleForma(){
+  const f=document.getElementById('f-forma').value;
+  document.getElementById('fg-cartao').style.display=f==='cartao'?'block':'none';
+  document.getElementById('fg-parcelas').style.display=f==='cartao'?'block':'none';
+  document.getElementById('fg-parc-sub').style.display=f==='parcelado'?'block':'none';
+  if(f!=='cartao'){document.getElementById('f-cartao').value='';document.getElementById('f-parcelas').value='1';}
+  if(f==='parcelado')calcParcPrev();
+}
+function calcParcPrev(){
+  const total=getMoneyVal('f-val');
+  const n=parseInt(document.getElementById('f-nparc').value)||0;
+  document.getElementById('f-parc-prev').textContent=fmt(ParcelsCore.parcelaMensal(total,n));
 }
 function fillCartaoSel(){
   const sel=document.getElementById('f-cartao');
@@ -2167,8 +2196,13 @@ function openTxModal(tp){
   document.getElementById('f-desc').value='';
   _cents['f-val']=0;document.getElementById('f-val').value='';
   setTp(S.txType);fillCartaoSel();
-  document.getElementById('fg-parcelas').style.display='none';
+  document.getElementById('f-forma').value='avista';
   document.getElementById('f-parcelas').value='1';
+  document.getElementById('f-nparc').value='';
+  document.getElementById('f-pagas').value='0';
+  document.getElementById('f-parc-tipo').value='financiamento';
+  document.getElementById('f-parc-prev').textContent='R$ 0,00';
+  if(S.txType==='expense')toggleForma();
   document.getElementById('ov-tx').classList.add('open');
   setTimeout(initMasks,50);
 }
