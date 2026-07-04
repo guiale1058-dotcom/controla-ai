@@ -2411,13 +2411,15 @@ function saveTx(){
     S.parcs.push({id:S.nid++,desc,tipo,total:val,nparc,pagas,inicio,cat});
     saveState();closeOv('ov-tx');
     const d=new Date(date+'T12:00');curY=d.getFullYear();curM=d.getMonth();updLbl();updateHome();
-    const pg=document.querySelector('.pg.active');if(pg&&pg.id==='pg-parc')renderParcs();
+    const pg=document.querySelector('.pg.active');if(pg&&pg.id==='pg-parc')renderParcs();if(pg&&pg.id==='pg-tx')renderTxPage();
     showToast('Parcelamento registrado.');
     return;
   }
 
   const cartaoId=forma==='cartao'?parseInt(document.getElementById('f-cartao').value)||null:null;
+  if(forma==='cartao'&&!cartaoId){showToast('Selecione o cartão usado.');return;}
   const parcelas=cartaoId?parseInt(document.getElementById('f-parcelas').value)||1:1;
+  if(parcelas>72){showToast('Máximo de 72 parcelas no cartão.');return;}
   if(parcelas>1){
     const gid=S.nid++;
     const valParc=Math.round(val/parcelas*100)/100;
