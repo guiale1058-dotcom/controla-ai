@@ -351,6 +351,19 @@ body::before{
 }
 .ov.open{display:flex;animation:ovIn .2s ease}
 @keyframes ovIn{from{opacity:0}to{opacity:1}}
+#lock-screen{position:fixed;inset:0;z-index:9999;display:none;flex-direction:column;
+  align-items:center;justify-content:center;gap:18px;background:var(--bg,#0e1116);
+  padding:32px 24px;text-align:center}
+#lock-screen.open{display:flex}
+#lock-screen .lock-emoji{font-size:44px}
+#lock-screen h2{font-size:20px;color:var(--text)}
+#lock-screen .lock-sub{font-size:14px;color:var(--text2);max-width:280px}
+#lock-pin{font-size:26px;letter-spacing:10px;text-align:center;width:200px;padding:12px;
+  border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--text)}
+#lock-err{color:var(--red);font-size:13px;min-height:18px}
+#lock-screen .lock-actions{display:flex;flex-direction:column;gap:10px;width:220px}
+#lock-forgot{background:none;border:none;color:var(--text3);font-size:12px;
+  text-decoration:underline;cursor:pointer;margin-top:8px}
 .mdl{
   background:var(--bg2);
   border-radius:24px 24px 0 0;
@@ -753,6 +766,19 @@ body::before{
     </div>
   </div>
 
+</div>
+
+<div id="lock-screen">
+  <div class="lock-emoji">🔒</div>
+  <h2>App bloqueado</h2>
+  <div class="lock-sub" id="lock-bio-status">Digite seu PIN para entrar</div>
+  <input id="lock-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••"/>
+  <div id="lock-err"></div>
+  <div class="lock-actions">
+    <button class="bpri" id="lock-bio-btn" style="display:none" onclick="tryUnlockBio()">Usar biometria</button>
+    <button class="bpri" onclick="submitPin()">Entrar</button>
+  </div>
+  <button id="lock-forgot" onclick="forgotPin()">Esqueci meu PIN</button>
 </div>
 
 <div class="saved-toast" id="toast">✓ Salvo</div>
@@ -2097,6 +2123,31 @@ function openTxModal(tp){
   document.getElementById('ov-tx').classList.add('open');
   setTimeout(initMasks,50);
 }
+let _pinFails=0;
+function showLockScreen(){
+  document.getElementById('lock-err').textContent='';
+  document.getElementById('lock-pin').value='';
+  const bioBtn=document.getElementById('lock-bio-btn');
+  const l=loadLock();
+  bioBtn.style.display=(l&&l.webauthn)?'block':'none';
+  document.getElementById('lock-screen').classList.add('open');
+  const pin=document.getElementById('lock-pin');
+  setTimeout(()=>pin.focus(),50);
+  if(l&&l.webauthn&&typeof tryUnlockBio==='function')tryUnlockBio(true);
+}
+function hideLockScreen(){document.getElementById('lock-screen').classList.remove('open')}
+async function submitPin(){
+  const el=document.getElementById('lock-pin');
+  const err=document.getElementById('lock-err');
+  const l=loadLock();
+  if(!l){enterApp();return;}
+  const ok=await LockCore.pbkdf2Verify(el.value||'',l.pinHash,l.pinSalt,l.pinIters||PBKDF2_ITERS);
+  if(ok){_pinFails=0;enterApp();}
+  else{_pinFails++;el.value='';err.textContent='PIN incorreto';}
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&document.getElementById('lock-screen').classList.contains('open'))submitPin();
+});
 function openRendaModal(){
   document.getElementById('r-date').value=new Date().toISOString().split('T')[0];
   ['r-obs','r-horas','r-km'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -2437,13 +2488,22 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 });
 
+function enterApp(){
+  document.getElementById('onboarding').style.display='none';
+  hideLockScreen();
+  document.getElementById('main-app').style.display='block';
+  initApp();
+}
 if(isFirstTime()){
   document.getElementById('onboarding').style.display='flex';
   document.getElementById('main-app').style.display='none';
-}else{
+}else if(lockEnabled()){
+  // trava ativa: NÃO renderiza nada até desbloquear (anti-flash)
   document.getElementById('onboarding').style.display='none';
-  document.getElementById('main-app').style.display='block';
-  initApp();
+  document.getElementById('main-app').style.display='none';
+  showLockScreen();
+}else{
+  enterApp();
 }
 </script>
 
