@@ -2148,6 +2148,45 @@ async function submitPin(){
 document.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&document.getElementById('lock-screen').classList.contains('open'))submitPin();
 });
+async function bioAvailable(){
+  try{
+    return !!(window.PublicKeyCredential &&
+      await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
+  }catch(e){return false;}
+}
+async function enableBioForLock(){
+  const challenge=new Uint8Array(16);crypto.getRandomValues(challenge);
+  const userId=new Uint8Array(16);crypto.getRandomValues(userId);
+  const cred=await navigator.credentials.create({publicKey:{
+    challenge,
+    rp:{id:location.hostname,name:'Controla Aí'},
+    user:{id:userId,name:'controla-ai',displayName:'Controla Aí'},
+    pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+    authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',
+      residentKey:'discouraged',requireResidentKey:false},
+    timeout:60000
+  }});
+  const rawId=LockCore.b64uEncode(cred.rawId);
+  const l=loadLock();l.webauthn={rawId};saveLock(l);
+  return true;
+}
+async function tryUnlockBio(auto){
+  const l=loadLock();
+  if(!l||!l.webauthn)return;
+  try{
+    const challenge=new Uint8Array(16);crypto.getRandomValues(challenge);
+    await navigator.credentials.get({publicKey:{
+      challenge,
+      rpId:location.hostname,
+      allowCredentials:[{type:'public-key',id:LockCore.b64uDecode(l.webauthn.rawId)}],
+      userVerification:'required',
+      timeout:60000
+    }});
+    _pinFails=0;enterApp();
+  }catch(e){
+    if(!auto)document.getElementById('lock-err').textContent='Biometria não reconhecida — use o PIN';
+  }
+}
 function openRendaModal(){
   document.getElementById('r-date').value=new Date().toISOString().split('T')[0];
   ['r-obs','r-horas','r-km'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
