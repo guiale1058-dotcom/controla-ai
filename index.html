@@ -351,6 +351,20 @@ body::before{
 }
 .ov.open{display:flex;animation:ovIn .2s ease}
 @keyframes ovIn{from{opacity:0}to{opacity:1}}
+#lock-screen{position:fixed;inset:0;z-index:9999;display:none;flex-direction:column;
+  align-items:center;justify-content:center;gap:18px;background:var(--bg,#0e1116);
+  padding:32px 24px;text-align:center}
+#lock-screen.open{display:flex}
+#lock-screen .lock-emoji{font-size:44px}
+#lock-screen h2{font-size:20px;color:var(--text)}
+#lock-screen .lock-sub{font-size:14px;color:var(--text2);max-width:280px}
+#lock-pin{font-size:26px;letter-spacing:10px;text-align:center;width:200px;padding:12px;
+  border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--text)}
+#lock-err{color:var(--red);font-size:13px;min-height:18px}
+#lock-screen .lock-actions{display:flex;flex-direction:column;gap:10px;width:220px}
+#lock-forgot{background:none;border:none;color:var(--text3);font-size:12px;
+  text-decoration:underline;cursor:pointer;margin-top:8px}
+#ov-forgot{z-index:10000}
 .mdl{
   background:var(--bg2);
   border-radius:24px 24px 0 0;
@@ -746,6 +760,10 @@ body::before{
         <div class="config-row"><span class="config-lbl">Rendas extras</span><span class="config-val" id="cfg-nrenda">0</span></div>
         <div class="config-row"><span class="config-lbl">Parcelamentos</span><span class="config-val" id="cfg-nparc">0</span></div>
         <div class="config-row"><span class="config-lbl">Cartões</span><span class="config-val" id="cfg-ncart">0</span></div>
+        <div class="config-row" style="cursor:pointer" onclick="onLockRowClick()">
+          <span class="config-lbl">🔒 Trava de acesso</span>
+          <span class="config-val" id="cfg-lock-val">—</span>
+        </div>
       </div>
       <button class="export-btn" onclick="exportarDados()">📤 Exportar dados (backup JSON)</button>
       <button class="export-btn" onclick="exportarCSV()">📊 Exportar lançamentos (CSV)</button>
@@ -778,6 +796,60 @@ body::before{
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Config
   </button>
 </nav>
+</div>
+
+<!-- TRAVA DE ACESSO -->
+<div id="lock-screen">
+  <div class="lock-emoji">🔒</div>
+  <h2>App bloqueado</h2>
+  <div class="lock-sub" id="lock-bio-status">Digite seu PIN para entrar</div>
+  <input id="lock-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••"/>
+  <div id="lock-err"></div>
+  <div class="lock-actions">
+    <button class="bpri" id="lock-bio-btn" style="display:none" onclick="tryUnlockBio()">Usar biometria</button>
+    <button class="bpri" onclick="submitPin()">Entrar</button>
+  </div>
+  <button id="lock-forgot" onclick="forgotPin()">Esqueci meu PIN</button>
+</div>
+
+<div class="ov" id="ov-forgot">
+  <div class="mdl"><div class="mdl-handle"></div>
+    <h2 style="color:var(--red)">Apagar tudo e recomeçar?</h2>
+    <p style="color:var(--text2);font-size:14px;line-height:1.5">
+      Sem o PIN, a única forma de entrar é apagar <strong>TODOS os dados deste
+      aparelho</strong> e começar do zero. Isto <strong>não pode ser desfeito</strong>.
+    </p>
+    <div class="fg"><label>Digite <strong>APAGAR</strong> para confirmar</label>
+      <input id="forgot-confirm" autocomplete="off" placeholder="APAGAR"
+        oninput="document.getElementById('forgot-btn').disabled=(this.value.trim().toUpperCase()!=='APAGAR')"/></div>
+    <button class="bdanger" id="forgot-btn" disabled onclick="confirmWipe()">Apagar tudo</button>
+    <button class="bcan" onclick="closeOv('ov-forgot')">Cancelar</button>
+  </div>
+</div>
+
+<div class="ov" id="ov-lock-setup">
+  <div class="mdl"><div class="mdl-handle"></div>
+    <h2>Criar PIN da trava</h2>
+    <div class="lock-sub" style="color:var(--text2);font-size:13px;margin-bottom:8px">
+      Sem esse PIN (e sem a biometria), a única recuperação é apagar os dados deste aparelho.</div>
+    <div class="fg"><label>PIN (4 a 6 dígitos)</label>
+      <input id="lock-new" type="password" inputmode="numeric" maxlength="6" autocomplete="off"/></div>
+    <div class="fg"><label>Confirmar PIN</label>
+      <input id="lock-new2" type="password" inputmode="numeric" maxlength="6" autocomplete="off"/></div>
+    <div id="lock-setup-err" style="color:var(--red);font-size:13px;min-height:18px"></div>
+    <button class="bpri" onclick="saveLockPin()">Salvar PIN</button>
+    <button class="bcan" onclick="closeOv('ov-lock-setup')">Cancelar</button>
+  </div>
+</div>
+<div class="ov" id="ov-lock-disable">
+  <div class="mdl"><div class="mdl-handle"></div>
+    <h2>Desligar a trava</h2>
+    <div class="fg"><label>Digite seu PIN atual</label>
+      <input id="lock-off-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off"/></div>
+    <div id="lock-off-err" style="color:var(--red);font-size:13px;min-height:18px"></div>
+    <button class="bdanger" onclick="confirmLockDisable()">Desligar trava</button>
+    <button class="bcan" onclick="closeOv('ov-lock-disable')">Cancelar</button>
+  </div>
 </div>
 
 <!-- MODAIS -->
@@ -994,6 +1066,7 @@ body::before{
   </div>
 </div>
 
+<script src="lock-core.js"></script>
 <script>
 const MN=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const CATS=[
@@ -1085,6 +1158,13 @@ function saveState(){
 }
 function isFirstTime(){return!localStorage.getItem(KEY+'_done')&&!localStorage.getItem('financeiro_v2_done')}
 function markDone(){localStorage.setItem(KEY+'_done','1')}
+// ── TRAVA DE ACESSO ───────────────────────────────
+const LOCK_KEY='controla_lock';
+const PBKDF2_ITERS=100000;
+const RELOCK_MS=90000;
+function loadLock(){try{return JSON.parse(localStorage.getItem(LOCK_KEY))||null}catch(e){return null}}
+function saveLock(cfg){localStorage.setItem(LOCK_KEY,JSON.stringify(cfg))}
+function lockEnabled(){const l=loadLock();return!!(l&&l.enabled&&l.pinHash)}
 
 // ── FOTO DE PERFIL ─────────────────────────────
 function profileInitials(){
@@ -1863,6 +1943,7 @@ function renderConfig(){
   document.getElementById('cfg-nparc').textContent=S.parcs.length;
   document.getElementById('cfg-ncart').textContent=S.cartoes.length;
   renderResumoAnual();
+  renderLockRow();
 }
 
 function renderResumoAnual(){
@@ -2089,6 +2170,134 @@ function openTxModal(tp){
   document.getElementById('f-parcelas').value='1';
   document.getElementById('ov-tx').classList.add('open');
   setTimeout(initMasks,50);
+}
+let _pinFails=0;
+function showLockScreen(){
+  document.getElementById('lock-err').textContent='';
+  document.getElementById('lock-pin').value='';
+  const bioBtn=document.getElementById('lock-bio-btn');
+  const l=loadLock();
+  bioBtn.style.display=(l&&l.webauthn)?'block':'none';
+  document.getElementById('lock-screen').classList.add('open');
+  const pin=document.getElementById('lock-pin');
+  setTimeout(()=>pin.focus(),50);
+  if(l&&l.webauthn&&typeof tryUnlockBio==='function')tryUnlockBio(true);
+}
+function hideLockScreen(){document.getElementById('lock-screen').classList.remove('open')}
+async function submitPin(){
+  const el=document.getElementById('lock-pin');
+  const err=document.getElementById('lock-err');
+  const btn=document.querySelector('#lock-screen .bpri[onclick="submitPin()"]');
+  const l=loadLock();
+  if(!l){enterApp();return;}
+  const wait=LockCore.delayForAttempt(_pinFails);
+  if(wait>0){
+    let left=Math.ceil(wait/1000);
+    if(btn)btn.disabled=true;
+    err.textContent=`Aguarde ${left}s`;
+    await new Promise(res=>{
+      const iv=setInterval(()=>{left--;err.textContent=left>0?`Aguarde ${left}s`:'';
+        if(left<=0){clearInterval(iv);res();}},1000);
+    });
+    if(btn)btn.disabled=false;
+  }
+  const ok=await LockCore.pbkdf2Verify(el.value||'',l.pinHash,l.pinSalt,l.pinIters||PBKDF2_ITERS);
+  if(ok){_pinFails=0;enterApp();}
+  else{_pinFails++;el.value='';err.textContent='PIN incorreto';}
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&document.getElementById('lock-screen').classList.contains('open')&&!document.querySelector('.ov.open'))submitPin();
+});
+async function bioAvailable(){
+  try{
+    return !!(window.PublicKeyCredential &&
+      await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
+  }catch(e){return false;}
+}
+async function enableBioForLock(){
+  const challenge=new Uint8Array(16);crypto.getRandomValues(challenge);
+  const userId=new Uint8Array(16);crypto.getRandomValues(userId);
+  const cred=await navigator.credentials.create({publicKey:{
+    challenge,
+    rp:{id:location.hostname,name:'Controla Aí'},
+    user:{id:userId,name:'controla-ai',displayName:'Controla Aí'},
+    pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+    authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',
+      residentKey:'discouraged',requireResidentKey:false},
+    timeout:60000
+  }});
+  const rawId=LockCore.b64uEncode(cred.rawId);
+  const l=loadLock();l.webauthn={rawId};saveLock(l);
+  return true;
+}
+async function tryUnlockBio(auto){
+  const l=loadLock();
+  if(!l||!l.webauthn)return;
+  try{
+    const challenge=new Uint8Array(16);crypto.getRandomValues(challenge);
+    await navigator.credentials.get({publicKey:{
+      challenge,
+      rpId:location.hostname,
+      allowCredentials:[{type:'public-key',id:LockCore.b64uDecode(l.webauthn.rawId)}],
+      userVerification:'required',
+      timeout:60000
+    }});
+    _pinFails=0;enterApp();
+  }catch(e){
+    if(!auto)document.getElementById('lock-err').textContent='Biometria não reconhecida — use o PIN';
+  }
+}
+function forgotPin(){
+  document.getElementById('forgot-confirm').value='';
+  document.getElementById('forgot-btn').disabled=true;
+  document.getElementById('ov-forgot').classList.add('open');
+}
+function confirmWipe(){
+  localStorage.clear();
+  location.reload();
+}
+function renderLockRow(){
+  const el=document.getElementById('cfg-lock-val');
+  if(el)el.textContent=lockEnabled()?'Ativada':'Desativada';
+}
+function onLockRowClick(){lockEnabled()?openLockDisable():openLockSetup();}
+function openLockSetup(){
+  document.getElementById('lock-new').value='';
+  document.getElementById('lock-new2').value='';
+  document.getElementById('lock-setup-err').textContent='';
+  document.getElementById('ov-lock-setup').classList.add('open');
+}
+async function saveLockPin(){
+  const p1=document.getElementById('lock-new').value.trim();
+  const p2=document.getElementById('lock-new2').value.trim();
+  const err=document.getElementById('lock-setup-err');
+  if(!/^\d{4,6}$/.test(p1)){err.textContent='O PIN deve ter de 4 a 6 dígitos';return;}
+  if(p1!==p2){err.textContent='Os PINs não conferem';return;}
+  const salt=LockCore.randomSaltB64();
+  const hash=await LockCore.pbkdf2Hash(p1,salt,PBKDF2_ITERS);
+  saveLock({enabled:true,pinHash:hash,pinSalt:salt,pinIters:PBKDF2_ITERS,webauthn:null});
+  closeOv('ov-lock-setup');renderLockRow();
+  await askEnableBio();
+}
+async function askEnableBio(){
+  if(!(await bioAvailable())){showToast('🔒 Trava ativada (PIN)');return;}
+  if(confirm('Quer usar a biometria ou o desbloqueio seguro do aparelho para entrar mais rápido?')){
+    try{await enableBioForLock();showToast('🔒 Trava ativada (biometria + PIN)');}
+    catch(e){showToast('🔒 Trava ativada (PIN). Biometria não configurada.');}
+  }else{showToast('🔒 Trava ativada (PIN)');}
+}
+function openLockDisable(){
+  document.getElementById('lock-off-pin').value='';
+  document.getElementById('lock-off-err').textContent='';
+  document.getElementById('ov-lock-disable').classList.add('open');
+}
+async function confirmLockDisable(){
+  const l=loadLock();
+  const pin=document.getElementById('lock-off-pin').value||'';
+  const ok=l&&await LockCore.pbkdf2Verify(pin,l.pinHash,l.pinSalt,l.pinIters||PBKDF2_ITERS);
+  if(!ok){document.getElementById('lock-off-err').textContent='PIN incorreto';return;}
+  localStorage.removeItem(LOCK_KEY);
+  closeOv('ov-lock-disable');renderLockRow();showToast('Trava desligada');
 }
 function openRendaModal(){
   document.getElementById('r-date').value=new Date().toISOString().split('T')[0];
@@ -2430,14 +2639,35 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 });
 
-if(isFirstTime()){
-  document.getElementById('onboarding').style.display='flex';
-  document.getElementById('main-app').style.display='none';
-}else{
+function enterApp(){
   document.getElementById('onboarding').style.display='none';
+  hideLockScreen();
   document.getElementById('main-app').style.display='block';
   initApp();
 }
+if(isFirstTime()){
+  document.getElementById('onboarding').style.display='flex';
+  document.getElementById('main-app').style.display='none';
+}else if(lockEnabled()){
+  // trava ativa: NÃO renderiza nada até desbloquear (anti-flash)
+  document.getElementById('onboarding').style.display='none';
+  document.getElementById('main-app').style.display='none';
+  showLockScreen();
+}else{
+  enterApp();
+}
+let _bgAt=0;
+function _onHide(){_bgAt=Date.now();}
+function _onShow(){
+  if(document.visibilityState!=='visible')return;
+  if(lockEnabled()&&!document.getElementById('lock-screen').classList.contains('open')
+     &&_bgAt&&(Date.now()-_bgAt)>RELOCK_MS){
+    showLockScreen();
+  }
+}
+document.addEventListener('visibilitychange',()=>{document.visibilityState==='hidden'?_onHide():_onShow();});
+window.addEventListener('pagehide',_onHide);
+window.addEventListener('pageshow',_onShow);
 </script>
 
 <script>
