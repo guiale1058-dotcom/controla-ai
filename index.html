@@ -1085,6 +1085,13 @@ function saveState(){
 }
 function isFirstTime(){return!localStorage.getItem(KEY+'_done')&&!localStorage.getItem('financeiro_v2_done')}
 function markDone(){localStorage.setItem(KEY+'_done','1')}
+// ── TRAVA DE ACESSO ───────────────────────────────
+const LOCK_KEY='controla_lock';
+const PBKDF2_ITERS=100000;
+const RELOCK_MS=90000;
+function loadLock(){try{return JSON.parse(localStorage.getItem(LOCK_KEY))||null}catch(e){return null}}
+function saveLock(cfg){localStorage.setItem(LOCK_KEY,JSON.stringify(cfg))}
+function lockEnabled(){const l=loadLock();return!!(l&&l.enabled&&l.pinHash)}
 
 // ── FOTO DE PERFIL ─────────────────────────────
 function profileInitials(){
@@ -2439,6 +2446,8 @@ if(isFirstTime()){
   initApp();
 }
 </script>
+
+<script src="lock-core.js"></script>
 
 <script>
 if('serviceWorker' in navigator){
