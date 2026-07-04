@@ -701,7 +701,7 @@ body::before{
   <div id="pg-parc" class="pg">
     <div class="hdr">
       <h1>Parcelas</h1>
-      <button onclick="openParcModal()" style="background:var(--bg3);border:0.5px solid var(--border);color:var(--text);border-radius:8px;padding:7px 13px;cursor:pointer;font-size:13px;font-family:inherit">+ Novo</button>
+      <button onclick="openTxParcelado()" style="background:var(--bg3);border:0.5px solid var(--border);color:var(--text);border-radius:8px;padding:7px 13px;cursor:pointer;font-size:13px;font-family:inherit">+ Novo</button>
     </div>
     <div class="sec">
       <div id="parc-lista"></div>
@@ -860,7 +860,6 @@ body::before{
       <button class="tbtn ai" style="text-align:left;padding:13px 15px;font-size:15px" onclick="closeOv('ov-main');openTxModal('income')">↑ Receita</button>
       <button class="tbtn ae" style="text-align:left;padding:13px 15px;font-size:15px" onclick="closeOv('ov-main');openTxModal('expense')">↓ Despesa</button>
       <button class="tbtn" style="text-align:left;padding:13px 15px;font-size:15px;color:var(--teal);background:rgba(45,212,191,.1);border-color:rgba(45,212,191,.4)" onclick="closeOv('ov-main');openRendaModal()">💰 Renda extra</button>
-      <button class="tbtn" style="text-align:left;padding:13px 15px;font-size:15px;color:var(--coral);background:rgba(251,146,60,.1);border-color:rgba(251,146,60,.4)" onclick="closeOv('ov-main');openParcModal()">💳 Parcelamento</button>
     </div>
     <button class="bcan" style="margin-top:12px" onclick="closeOv('ov-main')">Cancelar</button>
   </div>
@@ -956,30 +955,6 @@ body::before{
   </div>
 </div>
 
-<div class="ov" id="ov-parc">
-  <div class="mdl"><div class="mdl-handle"></div>
-    <h2>Novo parcelamento</h2>
-    <div class="fg"><label>Descrição</label><input id="p-desc" placeholder="Ex: TV 55', Geladeira…"/></div>
-    <div class="fg"><label>Tipo</label><select id="p-tipo"><option value="cartao">Cartão de crédito</option><option value="boleto">Boleto / financiamento</option></select></div>
-    <div class="fg"><label>Valor total (R$)</label><div class="money-input-wrap"><input id="p-total" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
-    <div class="row2">
-      <div class="fg"><label>Nº de parcelas</label><input id="p-nparc" type="number" inputmode="numeric" placeholder="12" min="1"/></div>
-      <div class="fg"><label>Já pagas</label><input id="p-pagas" type="number" inputmode="numeric" placeholder="0" min="0"/></div>
-    </div>
-    <div class="fg"><label>Mês/Ano da 1ª parcela</label><input id="p-inicio" type="month"/></div>
-    <div style="background:var(--bg3);border-radius:var(--rs);padding:10px 12px;margin-bottom:13px;font-size:13px;color:var(--text2)">Parcela mensal: <strong id="p-prev" style="color:var(--amber)">R$ 0,00</strong></div>
-    <div class="fg"><label>Categoria</label>
-      <select id="p-cat">
-        <option value="eletronicos">📱 Eletrônicos</option><option value="moveis">🪑 Móveis</option>
-        <option value="veiculo">🚗 Veículo</option><option value="roupas">👕 Roupas</option>
-        <option value="saude">❤️ Saúde</option><option value="educacao">📚 Educação</option>
-        <option value="viagem">✈️ Viagem</option><option value="outros">📦 Outros</option>
-      </select>
-    </div>
-    <button class="bpri" onclick="saveParc()">Salvar parcelamento</button>
-    <button class="bcan" onclick="closeOv('ov-parc')">Cancelar</button>
-  </div>
-</div>
 
 <div class="ov" id="ov-edit-parc">
   <div class="mdl"><div class="mdl-handle"></div>
@@ -2159,12 +2134,6 @@ function setTp(t){
   const fc=t==='income'?CATS.filter(c=>['salario','outros'].includes(c.id)):CATS.filter(c=>c.id!=='salario');
   document.getElementById('f-cat').innerHTML=fc.map(c=>`<option value="${c.id}">${c.ic} ${c.n}</option>`).join('');
 }
-function toggleParcField(){
-  const temCartao=!!parseInt(document.getElementById('f-cartao').value);
-  const fg=document.getElementById('fg-parcelas');
-  fg.style.display=temCartao?'block':'none';
-  if(!temCartao)document.getElementById('f-parcelas').value='1';
-}
 function toggleForma(){
   const f=document.getElementById('f-forma').value;
   document.getElementById('fg-cartao').style.display=f==='cartao'?'block':'none';
@@ -2205,6 +2174,12 @@ function openTxModal(tp){
   if(S.txType==='expense')toggleForma();
   document.getElementById('ov-tx').classList.add('open');
   setTimeout(initMasks,50);
+}
+function openTxParcelado(){
+  openTxModal('expense');
+  setTp('expense');
+  document.getElementById('f-forma').value='parcelado';
+  toggleForma();
 }
 let _pinFails=0;
 function showLockScreen(){
@@ -2387,16 +2362,6 @@ function salvarPagamentoFatura(){
   refreshAll();
   showToast('💳 Pagamento de '+fmt(val)+' registrado');
 }
-function openParcModal(){
-  document.getElementById('p-inicio').value=now.toISOString().slice(0,7);
-  document.getElementById('p-desc').value='';
-  document.getElementById('p-nparc').value='';
-  document.getElementById('p-pagas').value='0';
-  _cents['p-total']=0;document.getElementById('p-total').value='';
-  document.getElementById('p-prev').textContent='R$ 0,00';
-  document.getElementById('ov-parc').classList.add('open');
-  setTimeout(initMasks,50);
-}
 function openConfigModal(){
   const p=S.perfil;
   document.getElementById('cfg-nome').value=p.nome||'';
@@ -2408,10 +2373,6 @@ function openConfigModal(){
 function closeOv(id){document.getElementById(id).classList.remove('open')}
 
 // ── SAVE FUNCTIONS ────────────────────────────────
-function calcP(){
-  const t=getMoneyVal('p-total');const n=parseInt(document.getElementById('p-nparc').value)||1;
-  document.getElementById('p-prev').textContent=fmt(t/n);
-}
 function calcRendaPrev(){
   const val=getMoneyVal('r-val');const custo=getMoneyVal('r-custo');
   const horas=parseFloat(document.getElementById('r-horas').value)||0;
@@ -2483,19 +2444,6 @@ function saveRenda(){
   const d=new Date(date+'T12:00');curY=d.getFullYear();curM=d.getMonth();updLbl();
   refreshAll();
 }
-function saveParc(){
-  const desc=document.getElementById('p-desc').value.trim();
-  const tipo=document.getElementById('p-tipo').value;
-  const total=getMoneyVal('p-total');
-  const nparc=parseInt(document.getElementById('p-nparc').value);
-  const pagas=parseInt(document.getElementById('p-pagas').value)||0;
-  const inicio=document.getElementById('p-inicio').value;
-  const cat=document.getElementById('p-cat').value;
-  if(!desc||!total||!nparc||!inicio)return;
-  S.parcs.push({id:S.nid++,desc,tipo,total,nparc,pagas,inicio,cat});
-  saveState();closeOv('ov-parc');renderParcs();updateHome();
-}
-
 let bancoSelecionado=null;
 function renderBancoGrid(){
   const grid=document.getElementById('banco-grid');
@@ -2664,7 +2612,7 @@ function finishOnboarding(){
 }
 
 // FECHAR MODAL CLICANDO FORA
-['ov-main','ov-tx','ov-edit-tx','ov-renda','ov-edit-renda','ov-parc','ov-edit-parc','ov-banco','ov-cartao','ov-pagar-fatura','ov-config','ov-edit-banco','ov-edit-cartao'].forEach(id=>{
+['ov-main','ov-tx','ov-edit-tx','ov-renda','ov-edit-renda','ov-edit-parc','ov-banco','ov-cartao','ov-pagar-fatura','ov-config','ov-edit-banco','ov-edit-cartao'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('click',e=>{if(e.target===el)closeOv(id);});
 });
@@ -2673,7 +2621,6 @@ function finishOnboarding(){
 document.addEventListener('input',function(e){
   const id=e.target.id;
   if(id==='r-val'||id==='r-custo'||id==='r-horas'||id==='r-km')calcRendaPrev();
-  if(id==='p-total'||id==='p-nparc')calcP();
 });
 
 function initApp(){
