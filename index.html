@@ -781,6 +781,21 @@ body::before{
   <button id="lock-forgot" onclick="forgotPin()">Esqueci meu PIN</button>
 </div>
 
+<div class="ov" id="ov-forgot">
+  <div class="mdl"><div class="mdl-handle"></div>
+    <h2 style="color:var(--red)">Apagar tudo e recomeçar?</h2>
+    <p style="color:var(--text2);font-size:14px;line-height:1.5">
+      Sem o PIN, a única forma de entrar é apagar <strong>TODOS os dados deste
+      aparelho</strong> e começar do zero. Isto <strong>não pode ser desfeito</strong>.
+    </p>
+    <div class="fg"><label>Digite <strong>APAGAR</strong> para confirmar</label>
+      <input id="forgot-confirm" autocomplete="off" placeholder="APAGAR"
+        oninput="document.getElementById('forgot-btn').disabled=(this.value.trim().toUpperCase()!=='APAGAR')"/></div>
+    <button class="bdanger" id="forgot-btn" disabled onclick="confirmWipe()">Apagar tudo</button>
+    <button class="bcan" onclick="closeOv('ov-forgot')">Cancelar</button>
+  </div>
+</div>
+
 <div class="saved-toast" id="toast">✓ Salvo</div>
 <button class="fab" onclick="openMainModal()">+</button>
 
@@ -2198,6 +2213,15 @@ async function tryUnlockBio(auto){
   }catch(e){
     if(!auto)document.getElementById('lock-err').textContent='Biometria não reconhecida — use o PIN';
   }
+}
+function forgotPin(){
+  document.getElementById('forgot-confirm').value='';
+  document.getElementById('forgot-btn').disabled=true;
+  document.getElementById('ov-forgot').classList.add('open');
+}
+function confirmWipe(){
+  localStorage.clear();
+  location.reload();
 }
 function openRendaModal(){
   document.getElementById('r-date').value=new Date().toISOString().split('T')[0];
