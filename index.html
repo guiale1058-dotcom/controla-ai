@@ -2432,9 +2432,26 @@ function saveTx(){
   const val=getMoneyVal('f-val');
   const cat=document.getElementById('f-cat').value;
   const date=document.getElementById('f-date').value;
-  const cartaoId=S.txType==='expense'?parseInt(document.getElementById('f-cartao').value)||null:null;
+  const forma=S.txType==='expense'?document.getElementById('f-forma').value:'avista';
+  if(!desc||!val||!date){showToast('Preencha descrição, valor e data.');return;}
+
+  if(forma==='parcelado'){
+    const nparc=parseInt(document.getElementById('f-nparc').value)||0;
+    const pagas=parseInt(document.getElementById('f-pagas').value)||0;
+    const v=ParcelsCore.validarParcelamento({total:val,nparc,pagas});
+    if(!v.ok){showToast(v.erros.nparc||v.erros.pagas||v.erros.total||'Dados do parcelamento inválidos.');return;}
+    const tipo=document.getElementById('f-parc-tipo').value;
+    const inicio=date.slice(0,7);
+    S.parcs.push({id:S.nid++,desc,tipo,total:val,nparc,pagas,inicio,cat});
+    saveState();closeOv('ov-tx');
+    const d=new Date(date+'T12:00');curY=d.getFullYear();curM=d.getMonth();updLbl();updateHome();
+    const pg=document.querySelector('.pg.active');if(pg&&pg.id==='pg-parc')renderParcs();
+    showToast('Parcelamento registrado.');
+    return;
+  }
+
+  const cartaoId=forma==='cartao'?parseInt(document.getElementById('f-cartao').value)||null:null;
   const parcelas=cartaoId?parseInt(document.getElementById('f-parcelas').value)||1:1;
-  if(!desc||!val||!date)return;
   if(parcelas>1){
     const gid=S.nid++;
     const valParc=Math.round(val/parcelas*100)/100;
