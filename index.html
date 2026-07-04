@@ -892,7 +892,7 @@ body::before{
       </div>
       <div id="fg-parc-prev" style="background:var(--bg3);border-radius:var(--rs);padding:10px 12px;margin-bottom:13px;font-size:13px;color:var(--text2)">Parcela mensal: <strong id="f-parc-prev" style="color:var(--amber)">R$ 0,00</strong></div>
     </div>
-    <div class="fg"><label>Data</label><input id="f-date" type="date"/></div>
+    <div class="fg"><label id="f-date-label">Data</label><input id="f-date" type="date"/></div>
     <button class="bpri" onclick="saveTx()">Salvar</button>
     <button class="bcan" onclick="closeOv('ov-tx')">Cancelar</button>
   </div>
@@ -2051,7 +2051,7 @@ function deleteRenda(){
 function saveEditParc(){
   const p=S.parcs.find(x=>x.id===_editId);if(!p)return;
   p.desc=document.getElementById('ep-desc').value.trim()||p.desc;
-  p.pagas=Math.min(p.nparc,parseInt(document.getElementById('ep-pagas').value)||0);
+  p.pagas=Math.max(0,Math.min(p.nparc,parseInt(document.getElementById('ep-pagas').value)||0));
   saveState();closeOv('ov-edit-parc');renderParcs();updateHome();
 }
 function deleteParc(){
@@ -2134,7 +2134,7 @@ function setTp(t){
   document.getElementById('bt-inc').className='tbtn'+(t==='income'?' ai':'');
   document.getElementById('bt-exp').className='tbtn'+(t==='expense'?' ae':'');
   document.getElementById('fg-forma').style.display=t==='expense'?'block':'none';
-  if(t!=='expense'){document.getElementById('fg-cartao').style.display='none';document.getElementById('fg-parcelas').style.display='none';document.getElementById('fg-parc-sub').style.display='none';}
+  if(t!=='expense'){document.getElementById('fg-cartao').style.display='none';document.getElementById('fg-parcelas').style.display='none';document.getElementById('fg-parc-sub').style.display='none';document.getElementById('f-date-label').textContent='Data';}
   else toggleForma();
   const fc=t==='income'?CATS.filter(c=>['salario','outros'].includes(c.id)):CATS.filter(c=>c.id!=='salario');
   document.getElementById('f-cat').innerHTML=fc.map(c=>`<option value="${c.id}">${c.ic} ${c.n}</option>`).join('');
@@ -2145,6 +2145,7 @@ function toggleForma(){
   document.getElementById('fg-parcelas').style.display=f==='cartao'?'block':'none';
   document.getElementById('fg-parc-sub').style.display=f==='parcelado'?'block':'none';
   if(f!=='cartao'){document.getElementById('f-cartao').value='';document.getElementById('f-parcelas').value='1';}
+  document.getElementById('f-date-label').textContent=f==='parcelado'?'Mês da 1ª parcela':'Data';
   if(f==='parcelado')calcParcPrev();
 }
 function calcParcPrev(){
@@ -2628,6 +2629,7 @@ function finishOnboarding(){
 document.addEventListener('input',function(e){
   const id=e.target.id;
   if(id==='r-val'||id==='r-custo'||id==='r-horas'||id==='r-km')calcRendaPrev();
+  if(id==='f-val'&&document.getElementById('f-forma').value==='parcelado')calcParcPrev();
 });
 
 function initApp(){
