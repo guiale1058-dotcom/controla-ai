@@ -383,6 +383,16 @@ body::before{
 }
 .mdl-handle{width:36px;height:4px;background:var(--bg4);border-radius:2px;margin:0 auto 20px}
 .mdl h2{font-size:18px;font-weight:700;margin-bottom:20px;letter-spacing:-.3px}
+.nv-mdl{text-align:center}
+.nv-logo{margin:0 auto 16px;width:76px;height:76px}
+.nv-logo img{width:76px;height:76px;border-radius:20px;display:block;box-shadow:0 0 30px rgba(167,139,250,.5)}
+.nv-title{text-align:center;margin-bottom:6px!important}
+.nv-sub{color:var(--text3);font-size:13px;margin-bottom:22px}
+.nv-list{margin-bottom:22px;display:flex;flex-direction:column;gap:14px;text-align:left}
+.nv-item{display:flex;gap:11px;align-items:flex-start;font-size:14.5px;color:var(--text2);line-height:1.45;
+  background:var(--bg3);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:13px 14px}
+.nv-item .nv-ic{flex-shrink:0;font-size:15px;line-height:1.4}
+.nv-btn{margin-top:4px}
 
 /* ── FORMULÁRIOS ────────────────────────────── */
 .fg{margin-bottom:14px}
@@ -1033,6 +1043,16 @@ body::before{
   </div>
 </div>
 
+<div class="ov" id="ov-novidades">
+  <div class="mdl nv-mdl"><div class="mdl-handle"></div>
+    <div class="nv-logo"><img src="icon-192.png" alt="Controla Aí" width="76" height="76"></div>
+    <h2 class="nv-title">✨ Novidades da versão</h2>
+    <p class="nv-sub">Veja o que melhorou no app</p>
+    <div id="nv-lista" class="nv-list"></div>
+    <button class="bpri nv-btn" onclick="closeNovidades()">Entendi! 👍</button>
+  </div>
+</div>
+
 <div class="ov" id="ov-edit-banco">
   <div class="mdl"><div class="mdl-handle"></div>
     <h2>Editar banco</h2>
@@ -1199,6 +1219,17 @@ function removeFoto(){S.perfil.foto='';saveState();renderConfig();updateHome();}
 
 let S=loadState();
 let curY=now.getFullYear(),curM=now.getMonth();
+
+// ── NOVIDADES (aviso no 1º acesso após atualização) ──
+// Para avisar de uma nova atualização: suba APP_VERSION e adicione
+// um bloco novo no TOPO de NOVIDADES com essa mesma versão e os itens.
+const APP_VERSION=21;
+const NOVIDADES=[
+  {v:21,itens:[
+    'Campo de Aposentadoria / Benefício no perfil, somado à sua renda fixa',
+    'Deslize (swipe) para os lados para trocar de aba mais rápido',
+  ]},
+];
 let _filtroTx='todos';
 let _editId=null;
 
@@ -2395,6 +2426,21 @@ function openConfigModal(){
 }
 function closeOv(id){document.getElementById(id).classList.remove('open')}
 
+// ── NOVIDADES: mostra 1x após cada atualização ──────
+const NV_KEY='controla_novidades_v';
+function markNovidadesVistas(){localStorage.setItem(NV_KEY,APP_VERSION);}
+function checkNovidades(){
+  const vistas=parseInt(localStorage.getItem(NV_KEY)||'0',10);
+  if(vistas>=APP_VERSION)return;              // já viu tudo
+  const itens=NOVIDADES.filter(n=>n.v>vistas).flatMap(n=>n.itens);
+  markNovidadesVistas();                      // marca antes de exibir (não repete)
+  if(!itens.length)return;
+  document.getElementById('nv-lista').innerHTML=
+    itens.map(t=>`<div class="nv-item"><span class="nv-ic">✨</span><span>${t}</span></div>`).join('');
+  document.getElementById('ov-novidades').classList.add('open');
+}
+function closeNovidades(){closeOv('ov-novidades');}
+
 // ── SAVE FUNCTIONS ────────────────────────────────
 function calcRendaPrev(){
   const val=getMoneyVal('r-val');const custo=getMoneyVal('r-custo');
@@ -2655,6 +2701,7 @@ document.addEventListener('input',function(e){
 function initApp(){
   updLbl();updateHome();
   setTimeout(initMasks,100);
+  setTimeout(checkNovidades,450);
 }
 
 // INICIALIZAÇÃO
@@ -2674,6 +2721,7 @@ function enterApp(){
   initApp();
 }
 if(isFirstTime()){
+  markNovidadesVistas();  // usuário novo já começa na versão atual: sem changelog no 1º cadastro
   document.getElementById('onboarding').style.display='flex';
   document.getElementById('main-app').style.display='none';
 }else if(lockEnabled()){
