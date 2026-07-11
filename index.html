@@ -1497,12 +1497,13 @@ function updateHome(){
 
   // Saldo disponível = mesmo valor unificado, com breakdown
   const sdWrap=document.getElementById('saldo-disp-wrap');
-  const salComp=S.perfil.salario>0?Math.round(saidas/(S.perfil.salario)*100):0;
+  const rendaBase=rendaFixa();
+  const salComp=rendaBase>0?Math.round(saidas/rendaBase*100):0;
   sdWrap.innerHTML=`
     <div class="saldo-disp">
       <div>
         <div class="sd-lbl">Entradas do mês</div>
-        <div class="sd-sub" style="color:var(--text3)">${salComp>0?salComp+'% do salário comprometido':''}</div>
+        <div class="sd-sub" style="color:var(--text3)">${salComp>0?salComp+'% da renda comprometida':''}</div>
       </div>
       <div style="text-align:right">
         <div style="font-size:13px;color:var(--green);font-weight:600">+${fmt(entradas)}</div>
@@ -1512,7 +1513,7 @@ function updateHome(){
 
   let alerts='';
   if(uBruto>0)alerts+=`<div class="alert alert-green">💰 ${rendasM.length} registro${rendasM.length>1?'s':''} de renda extra — líquido <strong>${fmt(uLiq)}</strong></div>`;
-  if(parcTot>0&&S.perfil.salario>0){const pct=Math.round(parcTot/S.perfil.salario*100);alerts+=`<div class="alert alert-amber" onclick="navTo('parc')" style="cursor:pointer">💳 <strong>${fmt(parcTot)}</strong> em parcelas (${pct}% do salário) ›</div>`;}
+  if(parcTot>0&&rendaFixa()>0){const pct=Math.round(parcTot/rendaFixa()*100);alerts+=`<div class="alert alert-amber" onclick="navTo('parc')" style="cursor:pointer">💳 <strong>${fmt(parcTot)}</strong> em parcelas (${pct}% da renda) ›</div>`;}
   S.cartoes.forEach(c=>{const u=limiteUsado(c.id);if(c.limite>0&&u/c.limite>=0.8){const b=getBanco(c.bancoId);alerts+=`<div class="alert alert-red" onclick="navTo('cartoes')" style="cursor:pointer">⚠️ ${b?b.nome+' ':''}<strong>${c.nome}</strong> — ${Math.round(u/c.limite*100)}% do limite ›</div>`;}});
   S.cartoes.forEach(c=>{
     const rest=faturaRestante(c.id,curY,curM);
@@ -1955,7 +1956,7 @@ function renderResumoAnual(){
     const rendasM=S.renda.filter(r=>{const d=new Date(r.date+'T12:00');return d.getFullYear()===ano&&d.getMonth()===m});
     // salário conta do mês atual em diante (não retroage p/ meses passados sem despesas registradas);
     // coerente com as parcelas, que também se projetam p/ frente
-    const sal=(S.perfil.salario||0)>0&&(ano<curY||(ano===curY&&m>=curM))?S.perfil.salario:0;
+    const sal=rendaFixa()>0&&(ano<curY||(ano===curY&&m>=curM))?rendaFixa():0;
     const rec=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.val,0)+rendasM.reduce((s,r)=>s+(r.val-(r.custo||0)),0)+sal;
     // Despesas pelo mês de faturamento do cartão (mesma regra da tela Início/Lançamentos),
     // senão o gasto de cartão feito após o fechamento caía no mês da compra em vez do mês da fatura.
