@@ -1950,7 +1950,9 @@ function renderResumoAnual(){
   for(let m=0;m<12;m++){
     const txs=S.tx.filter(t=>{const d=new Date(t.date+'T12:00');return d.getFullYear()===ano&&d.getMonth()===m});
     const rendasM=S.renda.filter(r=>{const d=new Date(r.date+'T12:00');return d.getFullYear()===ano&&d.getMonth()===m});
-    const sal=(S.perfil.salario||0)>0&&(ano<curY||(ano===curY&&m<=curM))?S.perfil.salario:0;
+    // salário conta do mês atual em diante (não retroage p/ meses passados sem despesas registradas);
+    // coerente com as parcelas, que também se projetam p/ frente
+    const sal=(S.perfil.salario||0)>0&&(ano<curY||(ano===curY&&m>=curM))?S.perfil.salario:0;
     const rec=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.val,0)+rendasM.reduce((s,r)=>s+(r.val-(r.custo||0)),0)+sal;
     const desp=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.val,0)+getMthParcTot(ano,m);
     meses.push({m,rec,desp});
