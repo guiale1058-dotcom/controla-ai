@@ -749,6 +749,7 @@ body::before{
         </div>
         <div class="config-row"><span class="config-lbl">Nome</span><span class="config-val" id="cfg-nome-val">—</span></div>
         <div class="config-row"><span class="config-lbl">Salário mensal</span><span class="config-val" id="cfg-sal-val">—</span></div>
+        <div class="config-row"><span class="config-lbl">Aposentadoria / Benefício</span><span class="config-val" id="cfg-ben-val">—</span></div>
         <div class="config-row"><span class="config-lbl">Saldo inicial (conta)</span><span class="config-val" id="cfg-saldo-val">—</span></div>
         <button class="bcan" style="margin-top:8px" onclick="openConfigModal()">Editar perfil</button>
       </div>
@@ -1020,6 +1021,7 @@ body::before{
     <h2>Editar perfil</h2>
     <div class="fg"><label>Nome</label><input id="cfg-nome" placeholder="Seu nome"/></div>
     <div class="fg"><label>Salário mensal (R$)</label><div class="money-input-wrap"><input id="cfg-sal" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
+    <div class="fg"><label>Aposentadoria / Benefício (R$)</label><div class="money-input-wrap"><input id="cfg-ben" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
     <div class="fg"><label>Saldo inicial (antes de usar o app) (R$)</label><div class="money-input-wrap"><input id="cfg-saldo" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
     <button class="bpri" onclick="saveConfig()">Salvar</button>
     <button class="bcan" onclick="closeOv('ov-config')">Cancelar</button>
@@ -1937,6 +1939,7 @@ function renderConfig(){
   document.getElementById('foto-remove').style.display=p.foto?'block':'none';
   document.getElementById('cfg-nome-val').textContent=p.nome||'—';
   document.getElementById('cfg-sal-val').textContent=p.salario>0?fmt(p.salario):'—';
+  document.getElementById('cfg-ben-val').textContent=p.beneficio>0?fmt(p.beneficio):'—';
   document.getElementById('cfg-saldo-val').textContent=p.saldoInicial>0?fmt(p.saldoInicial):'—';
   document.getElementById('cfg-ntx').textContent=S.tx.length;
   document.getElementById('cfg-nrenda').textContent=S.renda.length;
@@ -2380,6 +2383,7 @@ function openConfigModal(){
   const p=S.perfil;
   document.getElementById('cfg-nome').value=p.nome||'';
   setMoneyVal('cfg-sal',p.salario||0);
+  setMoneyVal('cfg-ben',p.beneficio||0);
   setMoneyVal('cfg-saldo',p.saldoInicial||0);
   document.getElementById('ov-config').classList.add('open');
   setTimeout(initMasks,50);
@@ -2552,6 +2556,7 @@ function deleteEditCartao(){
 function saveConfig(){
   S.perfil.nome=document.getElementById('cfg-nome').value.trim();
   S.perfil.salario=getMoneyVal('cfg-sal');
+  S.perfil.beneficio=getMoneyVal('cfg-ben');
   S.perfil.saldoInicial=getMoneyVal('cfg-saldo');
   saveState();closeOv('ov-config');updateHome();renderConfig();
 }
