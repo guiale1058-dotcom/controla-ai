@@ -1114,7 +1114,7 @@ function getBancoLogo(nome,cor){
 }
 
 
-const EMPTY_STATE={perfil:{nome:'',salario:0,saldoInicial:0,foto:''},bancos:[],cartoes:[],tx:[],renda:[],parcs:[],nid:1};
+const EMPTY_STATE={perfil:{nome:'',salario:0,saldoInicial:0,foto:'',beneficio:0},bancos:[],cartoes:[],tx:[],renda:[],parcs:[],nid:1};
 
 function loadState(){
   try{
@@ -1122,7 +1122,7 @@ function loadState(){
     if(r){
       const s=JSON.parse(r);
       return{
-        perfil:s.perfil||{nome:'',salario:0,saldoInicial:0},
+        perfil:s.perfil||{nome:'',salario:0,saldoInicial:0,beneficio:0},
         bancos:s.bancos||[],cartoes:s.cartoes||[],
         tx:s.tx||[],
         renda:s.renda||s.uber||[],
@@ -1135,7 +1135,7 @@ function loadState(){
     if(old){
       const s=JSON.parse(old);
       return{
-        perfil:s.perfil||{nome:'',salario:0,saldoInicial:0},
+        perfil:s.perfil||{nome:'',salario:0,saldoInicial:0,beneficio:0},
         bancos:s.bancos||[],cartoes:s.cartoes||[],
         tx:s.tx||[],renda:s.renda||s.uber||[],parcs:s.parcs||[],nid:s.nid||1
       };
@@ -1230,6 +1230,9 @@ function setMoneyVal(id,num){
   _cents[id]=Math.round(num*100);
   el.value=num.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
+// Renda fixa mensal de referência = salário + aposentadoria/benefício.
+// NÃO é caixa — usado só nos cálculos de "% comprometido" e no Resumo do ano.
+function rendaFixa(){ return (S.perfil.salario||0)+(S.perfil.beneficio||0); }
 function initMasks(){
   document.querySelectorAll('.money-input-wrap input[inputmode="numeric"]').forEach(el=>{
     const clone=el.cloneNode(true);
