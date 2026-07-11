@@ -584,6 +584,11 @@ body::before{
         <div class="money-input-wrap"><input id="onb-salario" type="text" inputmode="numeric" placeholder="0,00"/></div>
         <div class="hint">Pode ser alterado depois nas configurações</div>
       </div>
+      <div class="onb-field">
+        <label>Aposentadoria / Benefício (R$)</label>
+        <div class="money-input-wrap"><input id="onb-beneficio" type="text" inputmode="numeric" placeholder="0,00"/></div>
+        <div class="hint">Opcional — pode ser alterado depois</div>
+      </div>
     </div>
     <div class="onb-footer">
       <div class="onb-dots"><div class="dot"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div></div>
@@ -2575,6 +2580,7 @@ function goStep(n){
     const nome=document.getElementById('onb-nome').value.trim();
     S.perfil.nome=nome;
     S.perfil.salario=getMoneyVal('onb-salario');
+    S.perfil.beneficio=getMoneyVal('onb-beneficio');
     S.perfil.saldoInicial=getMoneyVal('onb-saldo');
     if(nome)document.getElementById('onb-ready-text').textContent='Olá, '+nome.split(' ')[0]+'! Agora cadastre seus bancos e cartões, registre seus gastos e acompanhe tudo em tempo real.';
     launchConfetti();
@@ -2625,6 +2631,7 @@ function launchConfetti(){
 function finishOnboarding(){
   S.perfil.nome=document.getElementById('onb-nome').value.trim();
   S.perfil.salario=getMoneyVal('onb-salario');
+  S.perfil.beneficio=getMoneyVal('onb-beneficio');
   S.perfil.saldoInicial=getMoneyVal('onb-saldo');
   saveState();markDone();
   document.getElementById('onboarding').style.display='none';
@@ -2654,7 +2661,7 @@ function initApp(){
 document.addEventListener('DOMContentLoaded',()=>{
   initMasks();
   // Máscaras no onboarding
-  ['onb-salario','onb-saldo'].forEach(id=>{
+  ['onb-salario','onb-beneficio','onb-saldo'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.addEventListener('input',()=>maskMoney(el));
   });
