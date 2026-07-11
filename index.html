@@ -2676,6 +2676,173 @@ function _onShow(){
 document.addEventListener('visibilitychange',()=>{document.visibilityState==='hidden'?_onHide():_onShow();});
 window.addEventListener('pagehide',_onHide);
 window.addEventListener('pageshow',_onShow);
+
+/* ── SWIPE ENTRE ABAS (navegação por gesto) ─────────────────
+   Camada isolada: arrastar o dedo p/ os lados troca de aba,
+   reusando o mesmo sistema de .pg.active dos botões de baixo.
+   Não altera nenhuma tela, dado ou cálculo existente.        */
+(function(){
+  const ORDER=['home','cartoes','renda','parc','tx','config'];
+  const app=document.getElementById('main-app');
+  if(!app)return;
+  const wrap=app.querySelector('.main-wrap');
+  if(!wrap)return;
+  const bnav=document.querySelector('.bnav');
+
+  let sx=0,sy=0,st=0,dx=0,dy=0;
+  let active=false, decided=false, busy=false;
+  let outEl=null,inEl=null,dir=0,targetIdx=-1,originIdx=0,W=0,startScroll=0,edge=false;
+
+  function renderFor(p){
+    if(p==='cartoes')renderCartoes();
+    else if(p==='renda')renderRenda();
+    else if(p==='parc')renderParcs();
+    else if(p==='tx')renderTxPage();
+    else if(p==='config')renderConfig();
+  }
+  function curIndex(){
+    const a=document.querySelector('.pg.active');
+    return a?Math.max(0,ORDER.indexOf(a.id.replace('pg-',''))):0;
+  }
+  function navBtn(p){
+    let b=null;
+    document.querySelectorAll('.nb').forEach(x=>{
+      if((x.getAttribute('onclick')||'').includes("'"+p+"'"))b=x;
+    });
+    return b;
+  }
+  // ignora se o dedo começou num elemento que rola na horizontal (ex: filtros)
+  function scrollableX(node){
+    while(node&&node!==wrap&&node!==document.body&&node!==document.documentElement){
+      if(node.scrollWidth>node.clientWidth+4){
+        const ov=getComputedStyle(node).overflowX;
+        if(ov==='auto'||ov==='scroll')return true;
+      }
+      node=node.parentElement;
+    }
+    return false;
+  }
+  function canStart(t){
+    if(busy)return false;
+    if(app.style.display==='none')return false;
+    if(document.querySelector('.ov.open'))return false;
+    const ls=document.getElementById('lock-screen');
+    if(ls&&ls.classList.contains('open'))return false;
+    return !scrollableX(t);
+  }
+  function clearEl(el){
+    if(!el)return;
+    ['transition','transform','position','top','left','right','width','margin','zIndex','willChange','display'].forEach(p=>{el.style[p]='';});
+  }
+  function endGesture(){
+    if(outEl||inEl){clearEl(outEl);clearEl(inEl);wrap.style.height='';}
+    active=false;decided=false;outEl=null;inEl=null;
+  }
+
+  app.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1)return;
+    if(!canStart(e.target))return;
+    const t=e.touches[0];
+    sx=t.clientX;sy=t.clientY;st=Date.now();dx=0;dy=0;
+    active=false;decided=false;edge=false;
+    outEl=null;inEl=null;dir=0;targetIdx=-1;
+  },{passive:true});
+
+  // prepara/limpa a aba vizinha p/ o alvo atual (chamado ao decidir e a cada inversão)
+  function retarget(){
+    if(inEl){clearEl(inEl);inEl=null;} // desmonta a vizinha anterior
+    targetIdx=originIdx+dir;
+    edge=(targetIdx<0||targetIdx>=ORDER.length);
+    if(!edge){
+      const inId=ORDER[targetIdx];
+      inEl=document.getElementById('pg-'+inId);
+      renderFor(inId);
+      Object.assign(inEl.style,{position:'absolute',top:startScroll+'px',left:'0',right:'0',width:'100%',margin:'0',zIndex:'2',willChange:'transform',display:'block'});
+    }
+  }
+
+  app.addEventListener('touchmove',e=>{
+    if(busy)return;
+    if(e.touches.length!==1){if(active)endGesture();return;} // multitouch → cancela o gesto
+    const t=e.touches[0];
+    dx=t.clientX-sx;dy=t.clientY-sy;
+    if(!decided){
+      if(Math.abs(dx)<8&&Math.abs(dy)<8)return;
+      decided=true;
+      if(Math.abs(dx)<=Math.abs(dy)){active=false;return;} // vertical → rola normal
+      active=true;
+      originIdx=curIndex();
+      W=wrap.clientWidth||window.innerWidth;
+      startScroll=window.scrollY||window.pageYOffset||0;
+      outEl=document.querySelector('.pg.active');
+      wrap.style.height=wrap.offsetHeight+'px'; // trava altura p/ não colapsar
+      Object.assign(outEl.style,{position:'absolute',top:'0',left:'0',right:'0',width:'100%',margin:'0',zIndex:'1',willChange:'transform'});
+      dir=0; // força o retarget abaixo
+    }
+    if(!active)return;
+    e.preventDefault();
+    // re-mira a aba se a direção horizontal do dedo mudou (corrige inversão no meio do gesto)
+    const wantDir = dx<0?1 : (dx>0?-1 : dir);
+    if(wantDir!==dir){ dir=wantDir; retarget(); }
+    if(edge||!inEl){
+      outEl.style.transform='translateX('+(dx*0.28)+'px)'; // resistência na ponta
+    }else{
+      outEl.style.transform='translateX('+dx+'px)';
+      inEl.style.transform='translateX('+((dir>0?W:-W)+dx)+'px)';
+    }
+  },{passive:false});
+
+  function finalize(){
+    const inId=ORDER[targetIdx];
+    document.querySelectorAll('.pg').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+    if(inEl)inEl.classList.add('active');
+    const nb=navBtn(inId);if(nb)nb.classList.add('active');
+    clearEl(outEl);clearEl(inEl);
+    wrap.style.height='';window.scrollTo(0,0);
+    if(navigator.vibrate)navigator.vibrate(8);
+    if(bnav)bnav.style.pointerEvents='';
+    busy=false;outEl=null;inEl=null;
+  }
+  function revert(){
+    clearEl(outEl);clearEl(inEl);wrap.style.height='';
+    if(bnav)bnav.style.pointerEvents='';
+    busy=false;outEl=null;inEl=null;
+  }
+
+  app.addEventListener('touchend',()=>{
+    if(!active||busy){if(active)endGesture();return;}
+    active=false;
+    const dt=Date.now()-st;
+    const commit=!edge&&!!inEl&&(Math.abs(dx)>W*0.33||(Math.abs(dx)>60&&dt<300));
+    busy=true;
+    if(bnav)bnav.style.pointerEvents='none'; // trava o menu durante a animação
+    const trs='transform .24s ease';
+    if(commit){
+      outEl.style.transition=trs;inEl.style.transition=trs;
+      requestAnimationFrame(()=>{
+        outEl.style.transform='translateX('+(dir>0?-W:W)+'px)';
+        inEl.style.transform='translateX(0px)';
+      });
+      let done=false;const fin=()=>{if(done)return;done=true;finalize();};
+      inEl.addEventListener('transitionend',fin,{once:true});
+      setTimeout(fin,340);
+    }else{
+      if(outEl)outEl.style.transition=trs;
+      if(inEl)inEl.style.transition=trs;
+      requestAnimationFrame(()=>{
+        if(outEl)outEl.style.transform='translateX(0px)';
+        if(inEl)inEl.style.transform='translateX('+(dir>0?W:-W)+'px)';
+      });
+      let done=false;const fin=()=>{if(done)return;done=true;revert();};
+      const ref=outEl||inEl;
+      if(ref)ref.addEventListener('transitionend',fin,{once:true});
+      setTimeout(fin,340);
+    }
+  },{passive:true});
+
+  app.addEventListener('touchcancel',()=>{if(!busy)endGesture();},{passive:true});
+})();
 </script>
 
 <script>
