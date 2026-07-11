@@ -1954,7 +1954,9 @@ function renderResumoAnual(){
     // coerente com as parcelas, que também se projetam p/ frente
     const sal=(S.perfil.salario||0)>0&&(ano<curY||(ano===curY&&m>=curM))?S.perfil.salario:0;
     const rec=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.val,0)+rendasM.reduce((s,r)=>s+(r.val-(r.custo||0)),0)+sal;
-    const desp=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.val,0)+getMthParcTot(ano,m);
+    // Despesas pelo mês de faturamento do cartão (mesma regra da tela Início/Lançamentos),
+    // senão o gasto de cartão feito após o fechamento caía no mês da compra em vez do mês da fatura.
+    const desp=despesasDoMes(ano,m);
     meses.push({m,rec,desp});
     if(rec>maxRec)maxRec=rec;
     if(desp>maxDesp)maxDesp=desp;
