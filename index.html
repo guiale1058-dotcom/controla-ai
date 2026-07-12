@@ -610,7 +610,7 @@ body::before{
     <div class="onb-hero" style="flex:0;padding-top:max(50px,env(safe-area-inset-top));padding-bottom:10px">
       <div class="onb-icon" style="font-size:44px;margin-bottom:14px">🏦</div>
       <div class="onb-title" style="font-size:22px">Saldo em conta hoje</div>
-      <div class="onb-sub" style="font-size:14px">Quanto você tinha na conta antes de começar a usar o app? Esse valor é somado às suas receitas.</div>
+      <div class="onb-sub" style="font-size:14px">Quanto você tem na conta agora? Esse é o seu ponto de partida — depois é só tocar em "Corrigir" quando quiser ajustar.</div>
     </div>
     <div class="onb-body" style="flex:1;padding-top:24px">
       <div class="onb-field">
@@ -2719,7 +2719,9 @@ function finishOnboarding(){
   S.perfil.nome=document.getElementById('onb-nome').value.trim();
   S.perfil.salario=getMoneyVal('onb-salario');
   S.perfil.beneficio=getMoneyVal('onb-beneficio');
-  S.perfil.saldoInicial=getMoneyVal('onb-saldo');
+  const _sco=getMoneyVal('onb-saldo');
+  S.perfil.saldoConta={valor:_sco,data:hojeStr()};
+  S.perfil.saldoInicial=_sco;
   saveState();markDone();
   document.getElementById('onboarding').style.display='none';
   document.getElementById('main-app').style.display='block';
