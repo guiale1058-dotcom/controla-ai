@@ -21,16 +21,18 @@
     return evs;
   }
 
+  // Eventos de caixa. tx/renda carregam `id` (ordem de lançamento, do S.nid);
+  // parcelas não têm id (são um cronograma) e são separadas só pela data.
   function cashEvents(tx, renda, parcs) {
     const evs = [];
     (tx || []).forEach(function (t) {
-      if (t.type === 'income') evs.push({ date: t.date, delta: (t.val || 0) });
-      else if (t.type === 'expense' && !t.cartaoId) evs.push({ date: t.date, delta: -(t.val || 0) });
-      else if (t.type === 'pagamento_fatura') evs.push({ date: t.date, delta: -(t.val || 0) });
+      if (t.type === 'income') evs.push({ date: t.date, delta: (t.val || 0), id: t.id });
+      else if (t.type === 'expense' && !t.cartaoId) evs.push({ date: t.date, delta: -(t.val || 0), id: t.id });
+      else if (t.type === 'pagamento_fatura') evs.push({ date: t.date, delta: -(t.val || 0), id: t.id });
       // despesa no cartão: ignorada (afeta só a fatura)
     });
     (renda || []).forEach(function (r) {
-      evs.push({ date: r.date, delta: (r.val || 0) - (r.custo || 0) });
+      evs.push({ date: r.date, delta: (r.val || 0) - (r.custo || 0), id: r.id });
     });
     (parcs || []).forEach(function (p) {
       parcelaEventos(p).forEach(function (e) { evs.push(e); });
@@ -38,15 +40,28 @@
     return evs;
   }
 
-  // Disponível = ancora.valor + soma dos eventos com ancora.data < date <= hoje.
+  // Um evento é "depois da correção" (entra no delta) se foi LANÇADO após a âncora.
+  // Para tx/renda usamos a ordem de lançamento (id >= ancora.id) — resolve o caso de
+  // um lançamento feito no MESMO dia da correção. Para parcelas (sem id) e dados
+  // legados, caímos para a comparação por data (date > ancora.data).
+  function eventoAposAncora(e, de, aid) {
+    if (e.id !== undefined && e.id !== null && aid !== undefined && aid !== null) {
+      return e.id >= aid;
+    }
+    return e.date > de;
+  }
+
+  // Disponível = ancora.valor + soma dos eventos lançados após a âncora, até hoje.
   function saldoDisponivel(ancora, tx, renda, parcs, hoje) {
     const base = (ancora && ancora.valor) || 0;
     const de = (ancora && ancora.data) || '0000-00-00';
+    const aid = ancora ? ancora.id : undefined;
     const evs = cashEvents(tx, renda, parcs);
     return evs.reduce(function (s, e) {
-      return (e.date > de && e.date <= hoje) ? s + e.delta : s;
+      if (e.date > hoje) return s;                 // evento futuro ainda não conta
+      return eventoAposAncora(e, de, aid) ? s + e.delta : s;
     }, base);
   }
 
-  return { parcelaEventos: parcelaEventos, cashEvents: cashEvents, saldoDisponivel: saldoDisponivel };
+  return { parcelaEventos: parcelaEventos, cashEvents: cashEvents, eventoAposAncora: eventoAposAncora, saldoDisponivel: saldoDisponivel };
 });

@@ -770,7 +770,7 @@ body::before{
         <div class="config-row"><span class="config-lbl">Nome</span><span class="config-val" id="cfg-nome-val">—</span></div>
         <div class="config-row"><span class="config-lbl">Salário mensal</span><span class="config-val" id="cfg-sal-val">—</span></div>
         <div class="config-row"><span class="config-lbl">Aposentadoria / Benefício</span><span class="config-val" id="cfg-ben-val">—</span></div>
-        <div class="config-row"><span class="config-lbl">Saldo em conta</span><span class="config-val" id="cfg-saldo-val">—</span></div>
+        <div class="config-row" onclick="openSaldoModal()" style="cursor:pointer"><span class="config-lbl">Saldo em conta <span style="color:var(--purple);font-size:11px">✏️ Corrigir</span></span><span class="config-val" id="cfg-saldo-val">—</span></div>
         <button class="bcan" style="margin-top:8px" onclick="openConfigModal()">Editar perfil</button>
       </div>
       <div class="sec-t" style="margin-top:8px">Resumo do ano</div>
@@ -1052,7 +1052,6 @@ body::before{
     <div class="fg"><label>Nome</label><input id="cfg-nome" placeholder="Seu nome"/></div>
     <div class="fg"><label>Salário mensal (R$)</label><div class="money-input-wrap"><input id="cfg-sal" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
     <div class="fg"><label>Aposentadoria / Benefício (R$)</label><div class="money-input-wrap"><input id="cfg-ben" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
-    <div class="fg"><label>Saldo em conta hoje (R$)</label><div class="money-input-wrap"><input id="cfg-saldo" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
     <button class="bpri" onclick="saveConfig()">Salvar</button>
     <button class="bcan" onclick="closeOv('ov-config')">Cancelar</button>
   </div>
@@ -1159,11 +1158,13 @@ function getBancoLogo(nome,cor){
 
 const EMPTY_STATE={perfil:{nome:'',salario:0,saldoInicial:0,foto:'',beneficio:0,saldoConta:{valor:0,data:hojeStr()}},bancos:[],cartoes:[],tx:[],renda:[],parcs:[],nid:1};
 
-function migraPerfil(p){
+function migraPerfil(p,nid){
   p=p||{nome:'',salario:0,saldoInicial:0,beneficio:0};
   if(!p.saldoConta){
-    // usuário antigo: usa o saldo inicial legado como ponto de partida de hoje
-    p.saldoConta={valor:p.saldoInicial||0,data:hojeStr()};
+    // usuário antigo: usa o saldo inicial legado como ponto de partida de hoje.
+    // id = nid atual: todos os lançamentos já existentes (id < nid) ficam "embutidos"
+    // no valor de partida e não são recontados.
+    p.saldoConta={valor:p.saldoInicial||0,data:hojeStr(),id:nid||1};
   }
   return p;
 }
@@ -1173,7 +1174,7 @@ function loadState(){
     if(r){
       const s=JSON.parse(r);
       return{
-        perfil:migraPerfil(s.perfil),
+        perfil:migraPerfil(s.perfil,s.nid),
         bancos:s.bancos||[],cartoes:s.cartoes||[],
         tx:s.tx||[],
         renda:s.renda||s.uber||[],
@@ -1185,7 +1186,7 @@ function loadState(){
     if(old){
       const s=JSON.parse(old);
       return{
-        perfil:migraPerfil(s.perfil),
+        perfil:migraPerfil(s.perfil,s.nid),
         bancos:s.bancos||[],cartoes:s.cartoes||[],
         tx:s.tx||[],renda:s.renda||s.uber||[],parcs:s.parcs||[],nid:s.nid||1
       };
@@ -2006,8 +2007,9 @@ function renderConfig(){
   document.getElementById('cfg-nome-val').textContent=p.nome||'—';
   document.getElementById('cfg-sal-val').textContent=p.salario>0?fmt(p.salario):'—';
   document.getElementById('cfg-ben-val').textContent=p.beneficio>0?fmt(p.beneficio):'—';
-  const sc=(p.saldoConta&&p.saldoConta.valor)||0;
-  document.getElementById('cfg-saldo-val').textContent=sc>0?fmt(sc):'—';
+  // mostra o Disponível na conta AO VIVO (não a âncora); editar é só pelo "Corrigir"
+  const disp=BalanceCore.saldoDisponivel(p.saldoConta,S.tx,S.renda,S.parcs,hojeStr());
+  document.getElementById('cfg-saldo-val').textContent=fmt(disp);
   document.getElementById('cfg-ntx').textContent=S.tx.length;
   document.getElementById('cfg-nrenda').textContent=S.renda.length;
   document.getElementById('cfg-nparc').textContent=S.parcs.length;
@@ -2451,7 +2453,6 @@ function openConfigModal(){
   document.getElementById('cfg-nome').value=p.nome||'';
   setMoneyVal('cfg-sal',p.salario||0);
   setMoneyVal('cfg-ben',p.beneficio||0);
-  setMoneyVal('cfg-saldo',(p.saldoConta&&p.saldoConta.valor)||p.saldoInicial||0);
   document.getElementById('ov-config').classList.add('open');
   setTimeout(initMasks,50);
 }
@@ -2475,8 +2476,9 @@ function closeNovidades(){closeOv('ov-novidades');}
 // Pede ao usuário ANTIGO (que já tem lançamentos) para confirmar o saldo real, 1 vez.
 const SALDO_CONFIRM_KEY='controla_saldo_confirmado_v1';
 function checkSaldoConfirm(){
+  // Só para de perguntar quando o usuário REALMENTE salvar (saveSaldo/finishOnboarding
+  // marcam a chave). Se ele cancelar o aviso, pergunta de novo no próximo acesso.
   if(localStorage.getItem(SALDO_CONFIRM_KEY))return;
-  localStorage.setItem(SALDO_CONFIRM_KEY,'1');
   if((S.tx&&S.tx.length>0)||(S.renda&&S.renda.length>0)){
     openSaldoModal();
   }
@@ -2646,12 +2648,11 @@ function deleteEditCartao(){
   saveState();closeOv('ov-edit-cartao');renderCartoes();updateHome();
 }
 function saveConfig(){
+  // Editar perfil NÃO mexe no saldo (isso é só pelo botão "Corrigir" → saveSaldo),
+  // pra não re-ancorar sem querer e apagar lançamentos recentes.
   S.perfil.nome=document.getElementById('cfg-nome').value.trim();
   S.perfil.salario=getMoneyVal('cfg-sal');
   S.perfil.beneficio=getMoneyVal('cfg-ben');
-  const _sc=getMoneyVal('cfg-saldo');
-  S.perfil.saldoConta={valor:_sc,data:hojeStr()};
-  S.perfil.saldoInicial=_sc; // espelho legado (sparkline)
   saveState();closeOv('ov-config');updateHome();renderConfig();
 }
 function openSaldoModal(){
@@ -2661,8 +2662,9 @@ function openSaldoModal(){
 }
 function saveSaldo(){
   const v=getMoneyVal('sd-val');
-  S.perfil.saldoConta={valor:v,data:hojeStr()};
+  S.perfil.saldoConta={valor:v,data:hojeStr(),id:S.nid}; // id = ponto de corte por ordem de lançamento
   S.perfil.saldoInicial=v; // espelho legado (sparkline)
+  localStorage.setItem(SALDO_CONFIRM_KEY,'1'); // confirmou o saldo real (fix: marca só ao salvar)
   saveState();closeOv('ov-saldo');updateHome();renderConfig();
 }
 function resetApp(){
@@ -2682,7 +2684,7 @@ function goStep(n){
     S.perfil.salario=getMoneyVal('onb-salario');
     S.perfil.beneficio=getMoneyVal('onb-beneficio');
     const _sco=getMoneyVal('onb-saldo');
-    S.perfil.saldoConta={valor:_sco,data:hojeStr()};
+    S.perfil.saldoConta={valor:_sco,data:hojeStr(),id:S.nid};
     S.perfil.saldoInicial=_sco;
     if(nome)document.getElementById('onb-ready-text').textContent='Olá, '+nome.split(' ')[0]+'! Agora cadastre seus bancos e cartões, registre seus gastos e acompanhe tudo em tempo real.';
     launchConfetti();
@@ -2735,8 +2737,9 @@ function finishOnboarding(){
   S.perfil.salario=getMoneyVal('onb-salario');
   S.perfil.beneficio=getMoneyVal('onb-beneficio');
   const _sco=getMoneyVal('onb-saldo');
-  S.perfil.saldoConta={valor:_sco,data:hojeStr()};
+  S.perfil.saldoConta={valor:_sco,data:hojeStr(),id:S.nid};
   S.perfil.saldoInicial=_sco;
+  localStorage.setItem(SALDO_CONFIRM_KEY,'1'); // usuário novo já definiu o saldo no onboarding
   saveState();markDone();
   document.getElementById('onboarding').style.display='none';
   document.getElementById('main-app').style.display='block';
