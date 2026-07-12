@@ -596,10 +596,10 @@ location.reload();
 Expected: cerca de 0,7s após carregar, o modal "Quanto você tem na conta?" abre sozinho. Após salvar, recarregar de novo **não** reabre o modal (flag setada). Verifique também que rodar a suíte segue verde:
 
 ```bash
-node --test test/
+node --test test/*.test.js
 ```
 
-Expected: todos os testes (lock-core, parcels-core, balance-core) passam.
+Expected: todos os testes (lock-core, parcels-core, balance-core) passam. (No Node 24, `node --test test/` falha tentando carregar `test` como módulo — sempre passar o glob dos arquivos.)
 
 - [ ] **Step 6: Commit**
 
