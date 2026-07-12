@@ -3,11 +3,11 @@ const assert = require('node:assert');
 const BC = require('../balance-core.js');
 
 test('parcelaEventos gera um evento negativo por mes ativo, no dia 01', () => {
-  // inicio jan/2026, 2 pagas, 4 parcelas de 250 -> faltam mar e abr
-  const evs = BC.parcelaEventos({ inicio: '2026-01', pagas: 2, nparc: 4, total: 1000 });
+  // inicio jan/2026, 2 pagas, 4 parcelas de 250 -> faltam mar e abr; eventos carregam o id da parcela
+  const evs = BC.parcelaEventos({ id: 7, inicio: '2026-01', pagas: 2, nparc: 4, total: 1000 });
   assert.deepStrictEqual(evs, [
-    { date: '2026-03-01', delta: -250 },
-    { date: '2026-04-01', delta: -250 },
+    { date: '2026-03-01', delta: -250, id: 7 },
+    { date: '2026-04-01', delta: -250, id: 7 },
   ]);
 });
 
@@ -101,6 +101,22 @@ test('saldoDisponivel: evento futuro não conta mesmo com id >= ancora.id', () =
   ];
   const r = BC.saldoDisponivel(ancora, tx, [], [], '2026-07-20');
   assert.strictEqual(r, 520);
+});
+
+test('saldoDisponivel: parcelamento criado DEPOIS da correção desconta já no mês da correção (id)', () => {
+  const ancora = { valor: 1000, data: '2026-07-12', id: 5 };
+  // parcelamento novo (id 5 >= ancora.id), 1º mês = mês da correção (07-01 <= ancora.data)
+  const parcs = [{ id: 5, inicio: '2026-07', pagas: 0, nparc: 4, total: 400 }]; // 100/mês
+  const r = BC.saldoDisponivel(ancora, [], [], parcs, '2026-07-20'); // só julho <= hoje
+  assert.strictEqual(r, 1000 - 100); // 900 (antes do fix ficava 1000)
+});
+
+test('saldoDisponivel: parcelamento ANTIGO (antes da correção) só desconta meses futuros a partir da âncora', () => {
+  const ancora = { valor: 1000, data: '2026-07-12', id: 50 };
+  const parcs = [{ id: 5, inicio: '2026-06', pagas: 0, nparc: 6, total: 600 }]; // 100/mês, id 5 < 50
+  // jun(06-01) e jul(07-01) <= ancora.data e id<ancora -> embutidos; ago(08-01) e set(09-01) contam
+  const r = BC.saldoDisponivel(ancora, [], [], parcs, '2026-09-30');
+  assert.strictEqual(r, 1000 - 100 - 100); // 800 (sem regressão: parcelas futuras seguem descontando)
 });
 
 test('saldoDisponivel: sem id na âncora (legado) cai no fallback por data', () => {

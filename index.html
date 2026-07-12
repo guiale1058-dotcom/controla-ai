@@ -2656,7 +2656,9 @@ function saveConfig(){
   saveState();closeOv('ov-config');updateHome();renderConfig();
 }
 function openSaldoModal(){
-  setMoneyVal('sd-val',(S.perfil.saldoConta&&S.perfil.saldoConta.valor)||0);
+  // pré-preenche com o Disponível ATUAL (não a âncora), pra não re-ancorar um valor velho
+  const disp=BalanceCore.saldoDisponivel(S.perfil.saldoConta,S.tx,S.renda,S.parcs,hojeStr());
+  setMoneyVal('sd-val',disp);
   document.getElementById('ov-saldo').classList.add('open');
   setTimeout(initMasks,50);
 }

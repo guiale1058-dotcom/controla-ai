@@ -16,13 +16,12 @@
       const y = Math.floor(idx / 12);
       const m = (idx % 12) + 1; // 1-12
       const date = y + '-' + String(m).padStart(2, '0') + '-01';
-      evs.push({ date: date, delta: -mensal });
+      evs.push({ date: date, delta: -mensal, id: p.id });
     }
     return evs;
   }
 
-  // Eventos de caixa. tx/renda carregam `id` (ordem de lançamento, do S.nid);
-  // parcelas não têm id (são um cronograma) e são separadas só pela data.
+  // Eventos de caixa. tx/renda e parcelas carregam `id` (ordem de lançamento, do S.nid).
   function cashEvents(tx, renda, parcs) {
     const evs = [];
     (tx || []).forEach(function (t) {
@@ -40,13 +39,15 @@
     return evs;
   }
 
-  // Um evento é "depois da correção" (entra no delta) se foi LANÇADO após a âncora.
-  // Para tx/renda usamos a ordem de lançamento (id >= ancora.id) — resolve o caso de
-  // um lançamento feito no MESMO dia da correção. Para parcelas (sem id) e dados
-  // legados, caímos para a comparação por data (date > ancora.data).
+  // Um evento entra no delta se ainda NÃO está embutido no valor da âncora, ou seja:
+  //  - foi LANÇADO após a correção (id >= ancora.id) — resolve o caso do lançamento no
+  //    MESMO dia da correção, inclusive um parcelamento novo cujo 1º mês é o da correção; OU
+  //  - está DATADO depois da âncora (date > ancora.data) — cobre as parcelas futuras de um
+  //    parcelamento antigo (criado antes da correção) e lançamentos futuros já agendados.
+  // Sem id (dados legados / âncora sem id) cai só na comparação por data.
   function eventoAposAncora(e, de, aid) {
     if (e.id !== undefined && e.id !== null && aid !== undefined && aid !== null) {
-      return e.id >= aid;
+      return e.id >= aid || e.date > de;
     }
     return e.date > de;
   }
