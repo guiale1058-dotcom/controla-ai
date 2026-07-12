@@ -49,3 +49,23 @@ test('saldoDisponivel desconta parcela do mes que chega depois da ancora', () =>
   const r = BC.saldoDisponivel(ancora, [], [], parcs, '2026-09-30');
   assert.strictEqual(r, 1000 - 100 - 100);
 });
+
+test('saldoDisponivel: evento exatamente na data da ancora NAO conta; exatamente em hoje conta', () => {
+  const ancora = { valor: 100, data: '2026-07-12' };
+  const tx = [
+    { type: 'income', val: 10, date: '2026-07-12' }, // == ancora -> exclui
+    { type: 'income', val: 5, date: '2026-07-25' },  // == hoje -> inclui
+  ];
+  const r = BC.saldoDisponivel(ancora, tx, [], [], '2026-07-25');
+  assert.strictEqual(r, 105);
+});
+
+test('parcelaEventos com parcela quitada (pagas >= nparc) devolve vazio', () => {
+  const evs = BC.parcelaEventos({ inicio: '2026-01', pagas: 4, nparc: 4, total: 1000 });
+  assert.deepStrictEqual(evs, []);
+});
+
+test('parcelaEventos arredonda a parcela mensal a 2 casas (consistente com parcelaMensal)', () => {
+  const evs = BC.parcelaEventos({ inicio: '2026-01', pagas: 0, nparc: 3, total: 1000 });
+  assert.ok(evs.every(e => e.delta === -333.33));
+});

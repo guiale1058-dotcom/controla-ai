@@ -11,7 +11,7 @@
     const [sy, sm] = p.inicio.split('-').map(Number); // sm: 1-12
     const start = sy * 12 + (sm - 1) + p.pagas;       // 1º mês ainda não pago
     const end = sy * 12 + (sm - 1) + p.nparc - 1;     // último mês
-    const mensal = p.total / p.nparc;
+    const mensal = Math.round((p.total / p.nparc) * 100) / 100;
     for (let idx = start; idx <= end; idx++) {
       const y = Math.floor(idx / 12);
       const m = (idx % 12) + 1; // 1-12
@@ -24,9 +24,9 @@
   function cashEvents(tx, renda, parcs) {
     const evs = [];
     (tx || []).forEach(function (t) {
-      if (t.type === 'income') evs.push({ date: t.date, delta: t.val });
-      else if (t.type === 'expense' && !t.cartaoId) evs.push({ date: t.date, delta: -t.val });
-      else if (t.type === 'pagamento_fatura') evs.push({ date: t.date, delta: -t.val });
+      if (t.type === 'income') evs.push({ date: t.date, delta: (t.val || 0) });
+      else if (t.type === 'expense' && !t.cartaoId) evs.push({ date: t.date, delta: -(t.val || 0) });
+      else if (t.type === 'pagamento_fatura') evs.push({ date: t.date, delta: -(t.val || 0) });
       // despesa no cartão: ignorada (afeta só a fatura)
     });
     (renda || []).forEach(function (r) {
