@@ -1246,8 +1246,13 @@ let curY=now.getFullYear(),curM=now.getMonth();
 // ── NOVIDADES (aviso no 1º acesso após atualização) ──
 // Para avisar de uma nova atualização: suba APP_VERSION e adicione
 // um bloco novo no TOPO de NOVIDADES com essa mesma versão e os itens.
-const APP_VERSION=21;
+const APP_VERSION=22;
 const NOVIDADES=[
+  {v:22,itens:[
+    'Novo "Disponível na conta": veja quanto você tem de dinheiro real agora',
+    'Toque em "Corrigir" para ajustar o saldo ao valor do seu banco',
+    'As parcelas do mês agora descontam do disponível; gasto no cartão não',
+  ]},
   {v:21,itens:[
     'Campo de Aposentadoria / Benefício no perfil, somado à sua renda fixa',
     'Deslize (swipe) para os lados para trocar de aba mais rápido',
@@ -1545,7 +1550,7 @@ function updateHome(){
 
   const resM=entradas-saidas;
   const resEl=document.getElementById('resultado-mes');
-  if(resEl)resEl.innerHTML='Resultado do mês: <b style="color:'+(resM>=0?'var(--green)':'var(--red)')+'">'+(resM>=0?'+':'−')+fmt(Math.abs(resM)).replace('R$ ','R$ ')+'</b>';
+  if(resEl)resEl.innerHTML='Resultado do mês: <b style="color:'+(resM>=0?'var(--green)':'var(--red)')+'">'+(resM>=0?'+':'−')+fmt(Math.abs(resM))+'</b>';
 
   const nome=S.perfil.nome;
   const hr=now.getHours();
@@ -2467,6 +2472,16 @@ function checkNovidades(){
 }
 function closeNovidades(){closeOv('ov-novidades');}
 
+// Pede ao usuário ANTIGO (que já tem lançamentos) para confirmar o saldo real, 1 vez.
+const SALDO_CONFIRM_KEY='controla_saldo_confirmado_v1';
+function checkSaldoConfirm(){
+  if(localStorage.getItem(SALDO_CONFIRM_KEY))return;
+  localStorage.setItem(SALDO_CONFIRM_KEY,'1');
+  if((S.tx&&S.tx.length>0)||(S.renda&&S.renda.length>0)){
+    openSaldoModal();
+  }
+}
+
 // ── SAVE FUNCTIONS ────────────────────────────────
 function calcRendaPrev(){
   const val=getMoneyVal('r-val');const custo=getMoneyVal('r-custo');
@@ -2745,6 +2760,7 @@ function initApp(){
   updLbl();updateHome();
   setTimeout(initMasks,100);
   setTimeout(checkNovidades,450);
+  setTimeout(checkSaldoConfirm,700);
 }
 
 // INICIALIZAÇÃO
