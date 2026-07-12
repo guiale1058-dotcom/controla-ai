@@ -609,12 +609,12 @@ body::before{
   <div class="onb-step" id="step-3">
     <div class="onb-hero" style="flex:0;padding-top:max(50px,env(safe-area-inset-top));padding-bottom:10px">
       <div class="onb-icon" style="font-size:44px;margin-bottom:14px">🏦</div>
-      <div class="onb-title" style="font-size:22px">Saldo inicial na conta</div>
+      <div class="onb-title" style="font-size:22px">Saldo em conta hoje</div>
       <div class="onb-sub" style="font-size:14px">Quanto você tinha na conta antes de começar a usar o app? Esse valor é somado às suas receitas.</div>
     </div>
     <div class="onb-body" style="flex:1;padding-top:24px">
       <div class="onb-field">
-        <label>Saldo disponível (R$)</label>
+        <label>Quanto você tem na conta hoje (R$)</label>
         <div class="money-input-wrap"><input id="onb-saldo" type="text" inputmode="numeric" placeholder="0,00"/></div>
       </div>
       <div class="onb-field">
@@ -770,7 +770,7 @@ body::before{
         <div class="config-row"><span class="config-lbl">Nome</span><span class="config-val" id="cfg-nome-val">—</span></div>
         <div class="config-row"><span class="config-lbl">Salário mensal</span><span class="config-val" id="cfg-sal-val">—</span></div>
         <div class="config-row"><span class="config-lbl">Aposentadoria / Benefício</span><span class="config-val" id="cfg-ben-val">—</span></div>
-        <div class="config-row"><span class="config-lbl">Saldo inicial (conta)</span><span class="config-val" id="cfg-saldo-val">—</span></div>
+        <div class="config-row"><span class="config-lbl">Saldo em conta</span><span class="config-val" id="cfg-saldo-val">—</span></div>
         <button class="bcan" style="margin-top:8px" onclick="openConfigModal()">Editar perfil</button>
       </div>
       <div class="sec-t" style="margin-top:8px">Resumo do ano</div>
@@ -1052,7 +1052,7 @@ body::before{
     <div class="fg"><label>Nome</label><input id="cfg-nome" placeholder="Seu nome"/></div>
     <div class="fg"><label>Salário mensal (R$)</label><div class="money-input-wrap"><input id="cfg-sal" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
     <div class="fg"><label>Aposentadoria / Benefício (R$)</label><div class="money-input-wrap"><input id="cfg-ben" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
-    <div class="fg"><label>Saldo inicial (antes de usar o app) (R$)</label><div class="money-input-wrap"><input id="cfg-saldo" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
+    <div class="fg"><label>Saldo em conta hoje (R$)</label><div class="money-input-wrap"><input id="cfg-saldo" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
     <button class="bpri" onclick="saveConfig()">Salvar</button>
     <button class="bcan" onclick="closeOv('ov-config')">Cancelar</button>
   </div>
@@ -2001,7 +2001,8 @@ function renderConfig(){
   document.getElementById('cfg-nome-val').textContent=p.nome||'—';
   document.getElementById('cfg-sal-val').textContent=p.salario>0?fmt(p.salario):'—';
   document.getElementById('cfg-ben-val').textContent=p.beneficio>0?fmt(p.beneficio):'—';
-  document.getElementById('cfg-saldo-val').textContent=p.saldoInicial>0?fmt(p.saldoInicial):'—';
+  const sc=(p.saldoConta&&p.saldoConta.valor)||0;
+  document.getElementById('cfg-saldo-val').textContent=sc>0?fmt(sc):'—';
   document.getElementById('cfg-ntx').textContent=S.tx.length;
   document.getElementById('cfg-nrenda').textContent=S.renda.length;
   document.getElementById('cfg-nparc').textContent=S.parcs.length;
@@ -2445,7 +2446,7 @@ function openConfigModal(){
   document.getElementById('cfg-nome').value=p.nome||'';
   setMoneyVal('cfg-sal',p.salario||0);
   setMoneyVal('cfg-ben',p.beneficio||0);
-  setMoneyVal('cfg-saldo',p.saldoInicial||0);
+  setMoneyVal('cfg-saldo',(p.saldoConta&&p.saldoConta.valor)||p.saldoInicial||0);
   document.getElementById('ov-config').classList.add('open');
   setTimeout(initMasks,50);
 }
@@ -2633,7 +2634,9 @@ function saveConfig(){
   S.perfil.nome=document.getElementById('cfg-nome').value.trim();
   S.perfil.salario=getMoneyVal('cfg-sal');
   S.perfil.beneficio=getMoneyVal('cfg-ben');
-  S.perfil.saldoInicial=getMoneyVal('cfg-saldo');
+  const _sc=getMoneyVal('cfg-saldo');
+  S.perfil.saldoConta={valor:_sc,data:hojeStr()};
+  S.perfil.saldoInicial=_sc; // espelho legado (sparkline)
   saveState();closeOv('ov-config');updateHome();renderConfig();
 }
 function openSaldoModal(){
@@ -2663,7 +2666,9 @@ function goStep(n){
     S.perfil.nome=nome;
     S.perfil.salario=getMoneyVal('onb-salario');
     S.perfil.beneficio=getMoneyVal('onb-beneficio');
-    S.perfil.saldoInicial=getMoneyVal('onb-saldo');
+    const _sco=getMoneyVal('onb-saldo');
+    S.perfil.saldoConta={valor:_sco,data:hojeStr()};
+    S.perfil.saldoInicial=_sco;
     if(nome)document.getElementById('onb-ready-text').textContent='Olá, '+nome.split(' ')[0]+'! Agora cadastre seus bancos e cartões, registre seus gastos e acompanhe tudo em tempo real.';
     launchConfetti();
   }
