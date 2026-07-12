@@ -1084,6 +1084,7 @@ body::before{
 
 <script src="lock-core.js"></script>
 <script src="parcels-core.js"></script>
+<script src="balance-core.js"></script>
 <script>
 const MN=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const CATS=[
@@ -1141,15 +1142,23 @@ function getBancoLogo(nome,cor){
 }
 
 
-const EMPTY_STATE={perfil:{nome:'',salario:0,saldoInicial:0,foto:'',beneficio:0},bancos:[],cartoes:[],tx:[],renda:[],parcs:[],nid:1};
+const EMPTY_STATE={perfil:{nome:'',salario:0,saldoInicial:0,foto:'',beneficio:0,saldoConta:{valor:0,data:hojeStr()}},bancos:[],cartoes:[],tx:[],renda:[],parcs:[],nid:1};
 
+function migraPerfil(p){
+  p=p||{nome:'',salario:0,saldoInicial:0,beneficio:0};
+  if(!p.saldoConta){
+    // usuário antigo: usa o saldo inicial legado como ponto de partida de hoje
+    p.saldoConta={valor:p.saldoInicial||0,data:hojeStr()};
+  }
+  return p;
+}
 function loadState(){
   try{
     const r=localStorage.getItem(KEY);
     if(r){
       const s=JSON.parse(r);
       return{
-        perfil:s.perfil||{nome:'',salario:0,saldoInicial:0,beneficio:0},
+        perfil:migraPerfil(s.perfil),
         bancos:s.bancos||[],cartoes:s.cartoes||[],
         tx:s.tx||[],
         renda:s.renda||s.uber||[],
@@ -1157,12 +1166,11 @@ function loadState(){
         nid:s.nid||1
       };
     }
-    // Migrar versão antiga
     const old=localStorage.getItem('financeiro_v2');
     if(old){
       const s=JSON.parse(old);
       return{
-        perfil:s.perfil||{nome:'',salario:0,saldoInicial:0,beneficio:0},
+        perfil:migraPerfil(s.perfil),
         bancos:s.bancos||[],cartoes:s.cartoes||[],
         tx:s.tx||[],renda:s.renda||s.uber||[],parcs:s.parcs||[],nid:s.nid||1
       };
@@ -1233,6 +1241,7 @@ const NOVIDADES=[
 let _filtroTx='todos';
 let _editId=null;
 
+function hojeStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 const fmt=v=>'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtN=v=>Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const getCat=id=>CATS.find(c=>c.id===id)||CATS[7];
