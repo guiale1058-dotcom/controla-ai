@@ -1036,6 +1036,16 @@ body::before{
   </div>
 </div>
 
+<div class="ov" id="ov-saldo">
+  <div class="mdl"><div class="mdl-handle"></div>
+    <h2>Quanto você tem na conta?</h2>
+    <p style="color:var(--text3);font-size:13px;margin:4px 0 12px">Confira o saldo no app do seu banco e informe o valor real. Ele vira seu novo ponto de partida.</p>
+    <div class="fg"><label>Disponível na conta (R$)</label><div class="money-input-wrap"><input id="sd-val" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
+    <button class="bpri" onclick="saveSaldo()">Salvar</button>
+    <button class="bcan" onclick="closeOv('ov-saldo')">Cancelar</button>
+  </div>
+</div>
+
 <div class="ov" id="ov-config">
   <div class="mdl"><div class="mdl-handle"></div>
     <h2>Editar perfil</h2>
@@ -2625,6 +2635,17 @@ function saveConfig(){
   S.perfil.beneficio=getMoneyVal('cfg-ben');
   S.perfil.saldoInicial=getMoneyVal('cfg-saldo');
   saveState();closeOv('ov-config');updateHome();renderConfig();
+}
+function openSaldoModal(){
+  setMoneyVal('sd-val',(S.perfil.saldoConta&&S.perfil.saldoConta.valor)||0);
+  document.getElementById('ov-saldo').classList.add('open');
+  setTimeout(initMasks,50);
+}
+function saveSaldo(){
+  const v=getMoneyVal('sd-val');
+  S.perfil.saldoConta={valor:v,data:hojeStr()};
+  S.perfil.saldoInicial=v; // espelho legado (sparkline)
+  saveState();closeOv('ov-saldo');updateHome();renderConfig();
 }
 function resetApp(){
   if(!confirm('Apagar TODOS os dados? Esta ação não pode ser desfeita.'))return;
