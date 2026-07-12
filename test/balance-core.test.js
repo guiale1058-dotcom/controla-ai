@@ -82,15 +82,16 @@ test('saldoDisponivel: lançamento no mesmo dia da correção conta pela ordem (
   assert.strictEqual(r, 1000 - 100 + 50); // 950
 });
 
-test('saldoDisponivel: id >= ancora.id conta, id < ancora.id não conta (independe da data)', () => {
+test('saldoDisponivel: lançamento RETROATIVO (data anterior) não conta, mesmo lançado depois da correção', () => {
+  // Codex: um gasto datado antes da correção já está embutido no saldo real do banco;
+  // não pode ser subtraído de novo só porque foi digitado depois (id novo).
   const ancora = { valor: 200, data: '2026-07-12', id: 5 };
   const tx = [
-    { type: 'income', val: 40, date: '2026-07-01', id: 4 }, // id antigo, data anterior -> exclui
-    { type: 'income', val: 60, date: '2026-07-01', id: 5 }, // id >= ancora mas data anterior... conta? só se <= hoje. data 07-01 <= hoje -> conta
+    { type: 'expense', val: 40, date: '2026-07-01', id: 8 }, // data anterior + id novo -> NÃO conta
+    { type: 'expense', val: 30, date: '2026-07-20', id: 9 }, // data posterior -> conta
   ];
-  // ambos com data <= hoje; separa pelo id: exclui 40 (id 4), inclui 60 (id 5)
   const r = BC.saldoDisponivel(ancora, tx, [], [], '2026-07-25');
-  assert.strictEqual(r, 260);
+  assert.strictEqual(r, 200 - 30); // 170 (o retroativo de 07-01 fica de fora)
 });
 
 test('saldoDisponivel: evento futuro não conta mesmo com id >= ancora.id', () => {
@@ -103,12 +104,16 @@ test('saldoDisponivel: evento futuro não conta mesmo com id >= ancora.id', () =
   assert.strictEqual(r, 520);
 });
 
-test('saldoDisponivel: parcelamento criado DEPOIS da correção desconta já no mês da correção (id)', () => {
+test('saldoDisponivel: parcela do mês da correção NÃO desconta (dinheiro ainda na conta); meses seguintes sim', () => {
+  // "Disponível = dinheiro que você TEM agora". A parcela do mês da correção (07-01, antes
+  // da âncora de 07-12) considera-se já refletida no saldo real; as parcelas dos meses
+  // seguintes descontam conforme vencem (por data).
   const ancora = { valor: 1000, data: '2026-07-12', id: 5 };
-  // parcelamento novo (id 5 >= ancora.id), 1º mês = mês da correção (07-01 <= ancora.data)
-  const parcs = [{ id: 5, inicio: '2026-07', pagas: 0, nparc: 4, total: 400 }]; // 100/mês
-  const r = BC.saldoDisponivel(ancora, [], [], parcs, '2026-07-20'); // só julho <= hoje
-  assert.strictEqual(r, 1000 - 100); // 900 (antes do fix ficava 1000)
+  const parcs = [{ id: 5, inicio: '2026-07', pagas: 0, nparc: 4, total: 400 }]; // 100/mês: jul,ago,set,out
+  const soJulho = BC.saldoDisponivel(ancora, [], [], parcs, '2026-07-20');
+  assert.strictEqual(soJulho, 1000); // julho (07-01 < âncora) não desconta ainda
+  const ateSetembro = BC.saldoDisponivel(ancora, [], [], parcs, '2026-09-30');
+  assert.strictEqual(ateSetembro, 1000 - 100 - 100); // ago e set descontam -> 800
 });
 
 test('saldoDisponivel: parcelamento ANTIGO (antes da correção) só desconta meses futuros a partir da âncora', () => {

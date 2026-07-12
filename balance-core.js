@@ -39,17 +39,21 @@
     return evs;
   }
 
-  // Um evento entra no delta se ainda NÃO está embutido no valor da âncora, ou seja:
-  //  - foi LANÇADO após a correção (id >= ancora.id) — resolve o caso do lançamento no
-  //    MESMO dia da correção, inclusive um parcelamento novo cujo 1º mês é o da correção; OU
-  //  - está DATADO depois da âncora (date > ancora.data) — cobre as parcelas futuras de um
-  //    parcelamento antigo (criado antes da correção) e lançamentos futuros já agendados.
-  // Sem id (dados legados / âncora sem id) cai só na comparação por data.
+  // A âncora é o saldo real do banco NA data `de`, então já reflete tudo que se moveu
+  // até `de`. Um evento entra no delta conforme QUANDO o dinheiro se moveu (a data):
+  //  - date > de  -> moveu depois da âncora -> conta.
+  //  - date < de  -> moveu antes -> já embutido no valor da âncora -> não conta
+  //                  (mesmo que tenha sido LANÇADO depois — ex.: gasto retroativo).
+  //  - date == de -> mesmo dia da correção: desempata pela ordem de lançamento (id);
+  //                  id >= ancora.id = lançado após a correção -> conta (ex.: gasto às 14h
+  //                  depois de corrigir às 10h). Sem id, é conservador e não conta.
   function eventoAposAncora(e, de, aid) {
+    if (e.date > de) return true;
+    if (e.date < de) return false;
     if (e.id !== undefined && e.id !== null && aid !== undefined && aid !== null) {
-      return e.id >= aid || e.date > de;
+      return e.id >= aid;
     }
-    return e.date > de;
+    return false;
   }
 
   // Disponível = ancora.valor + soma dos eventos lançados após a âncora, até hoje.
