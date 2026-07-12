@@ -1581,17 +1581,25 @@ function updateHome(){
     </div>`;
 
   let alerts='';
-  if(uBruto>0)alerts+=`<div class="alert alert-green">💰 ${rendasM.length} registro${rendasM.length>1?'s':''} de renda extra — líquido <strong>${fmt(uLiq)}</strong></div>`;
+  if(uBruto>0)alerts+=`<div class="alert alert-green" onclick="navTo('renda')" style="cursor:pointer">💰 ${rendasM.length} registro${rendasM.length>1?'s':''} de renda extra — líquido <strong>${fmt(uLiq)}</strong> ›</div>`;
   if(parcTot>0&&rendaFixa()>0){const pct=Math.round(parcTot/rendaFixa()*100);alerts+=`<div class="alert alert-amber" onclick="navTo('parc')" style="cursor:pointer">💳 <strong>${fmt(parcTot)}</strong> em parcelas (${pct}% da renda) ›</div>`;}
-  S.cartoes.forEach(c=>{const u=limiteUsado(c.id);if(c.limite>0&&u/c.limite>=0.8){const b=getBanco(c.bancoId);alerts+=`<div class="alert alert-red" onclick="navTo('cartoes')" style="cursor:pointer">⚠️ ${b?b.nome+' ':''}<strong>${c.nome}</strong> — ${Math.round(u/c.limite*100)}% do limite ›</div>`;}});
+  S.cartoes.forEach(c=>{const u=limiteUsado(c.id);if(c.limite>0&&u/c.limite>=0.8){const b=getBanco(c.bancoId);alerts+=`<div class="alert alert-red" onclick="navToCartao(${c.bancoId})" style="cursor:pointer">⚠️ ${b?b.nome+' ':''}<strong>${c.nome}</strong> — ${Math.round(u/c.limite*100)}% do limite ›</div>`;}});
   S.cartoes.forEach(c=>{
     const rest=faturaRestante(c.id,curY,curM);
     if(rest<=0)return;
+    const mesAtual=curY===now.getFullYear()&&curM===now.getMonth();
+    if(!mesAtual)return;
     const hoje=now.getDate();
-    const vencido=curY===now.getFullYear()&&curM===now.getMonth()&&hoje>c.venc;
-    if(!vencido)return;
     const b=getBanco(c.bancoId);
-    alerts+=`<div class="alert alert-amber" onclick="navTo('cartoes')" style="cursor:pointer">💳 Fatura ${b?b.nome+' ':''}<strong>${c.nome}</strong> venceu com <strong>${fmt(rest)}</strong> em aberto ›</div>`;
+    if(hoje>c.venc){
+      alerts+=`<div class="alert alert-red" onclick="navToCartao(${c.bancoId})" style="cursor:pointer">💳 Fatura ${b?b.nome+' ':''}<strong>${c.nome}</strong> venceu com <strong>${fmt(rest)}</strong> em aberto ›</div>`;
+    }else{
+      const dias=c.venc-hoje;
+      if(dias<=5){
+        const quando=dias===0?'vence hoje':dias===1?'vence amanhã':'vence em '+dias+' dias';
+        alerts+=`<div class="alert alert-amber" onclick="navToCartao(${c.bancoId})" style="cursor:pointer">💳 Fatura ${b?b.nome+' ':''}<strong>${c.nome}</strong> ${quando} — <strong>${fmt(rest)}</strong> ›</div>`;
+      }
+    }
   });
   document.getElementById('home-alerts').innerHTML=alerts;
 
@@ -1749,6 +1757,17 @@ function toggleBanco(id){
     item.classList.add('open');
     if(navigator.vibrate)navigator.vibrate(6);
   }
+}
+// Atalho a partir dos avisos da home: abre a aba Cartões, expande e rola até o banco.
+function navToCartao(bancoId){
+  navTo('cartoes');
+  setTimeout(function(){
+    const item=document.getElementById('banco-item-'+bancoId);
+    if(!item)return;
+    document.querySelectorAll('.banco-item.open').forEach(el=>el.classList.remove('open'));
+    item.classList.add('open');
+    item.scrollIntoView({behavior:'smooth',block:'center'});
+  },60);
 }
 
 // ── RENDER RENDA EXTRA ─────────────────────────────
