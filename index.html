@@ -2785,7 +2785,7 @@ function finishOnboarding(){
 }
 
 // FECHAR MODAL CLICANDO FORA
-['ov-main','ov-tx','ov-edit-tx','ov-renda','ov-edit-renda','ov-edit-parc','ov-banco','ov-cartao','ov-pagar-fatura','ov-config','ov-edit-banco','ov-edit-cartao'].forEach(id=>{
+['ov-main','ov-tx','ov-edit-tx','ov-renda','ov-edit-renda','ov-edit-parc','ov-banco','ov-cartao','ov-pagar-fatura','ov-config','ov-saldo','ov-edit-banco','ov-edit-cartao'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('click',e=>{if(e.target===el)closeOv(id);});
 });
