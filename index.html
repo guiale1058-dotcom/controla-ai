@@ -54,6 +54,10 @@ body::before{
 .avatar-face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;letter-spacing:.3px}
 .avatar-face img{width:100%;height:100%;object-fit:cover;display:block}
 .avatar-sm{width:34px;height:34px;font-size:13px}
+.avatar-btn{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.avatar-btn:active{transform:scale(.92)}
+.avatar-gear{position:absolute;right:-3px;bottom:-3px;width:16px;height:16px;border-radius:50%;background:var(--bg3);border:1.5px solid var(--bg2);display:flex;align-items:center;justify-content:center;z-index:1}
+.avatar-gear svg{width:10px;height:10px;stroke:var(--text2);fill:none;stroke-width:2.2}
 .avatar-lg{width:78px;height:78px;font-size:27px;cursor:pointer;box-shadow:0 6px 20px rgba(124,140,255,.35)}
 .avatar-cam{position:absolute;right:-2px;bottom:-2px;width:26px;height:26px;border-radius:50%;background:var(--bg3);border:2px solid var(--bg2);display:flex;align-items:center;justify-content:center;font-size:12px;z-index:1}
 .profile-head{display:flex;flex-direction:column;align-items:center;gap:9px;margin-bottom:14px}
@@ -657,7 +661,7 @@ body::before{
   <!-- INÍCIO -->
   <div id="pg-home" class="pg active">
     <div class="hdr">
-      <div class="hdr-left"><span class="avatar avatar-sm" id="hdr-avatar" style="display:none"><span class="avatar-face" id="hdr-avatar-face"></span></span><h1 id="hdr-saudacao">Finanças</h1></div>
+      <div class="hdr-left"><span class="avatar avatar-sm avatar-btn" id="hdr-avatar" role="button" tabindex="0" aria-label="Abrir configurações" onclick="openConfig()"><span class="avatar-face" id="hdr-avatar-face"></span><span class="avatar-gear"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></span></span><h1 id="hdr-saudacao">Finanças</h1></div>
       <div class="mnav">
         <button onclick="chM(-1)">‹</button>
         <span id="mlbl"></span>
@@ -812,9 +816,6 @@ body::before{
   </button>
   <button class="nb" onclick="goPg('tx',this)">
     <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Lançamentos
-  </button>
-  <button class="nb" onclick="goPg('config',this)">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Config
   </button>
 </nav>
 </div>
@@ -1248,8 +1249,12 @@ let curY=now.getFullYear(),curM=now.getMonth();
 // ── NOVIDADES (aviso no 1º acesso após atualização) ──
 // Para avisar de uma nova atualização: suba APP_VERSION e adicione
 // um bloco novo no TOPO de NOVIDADES com essa mesma versão e os itens.
-const APP_VERSION=23;
+const APP_VERSION=24;
 const NOVIDADES=[
+  {v:24,itens:[
+    'As Configurações agora abrem tocando na sua foto (ou iniciais) no topo da tela inicial',
+    'A barra de baixo ficou mais enxuta, com botões maiores',
+  ]},
   {v:23,itens:[
     'Avisos da tela inicial agora são clicáveis, e tem aviso de fatura vencendo em breve',
     'Segure o dedo num lançamento para editar',
@@ -1575,9 +1580,7 @@ function updateHome(){
   const hr=now.getHours();
   const greet=hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite';
   document.getElementById('hdr-saudacao').textContent=nome?(greet+', '+nome.split(' ')[0]):'Finanças';
-  const hdrAv=document.getElementById('hdr-avatar');
-  if(S.perfil.foto||nome){paintAvatar(document.getElementById('hdr-avatar-face'));hdrAv.style.display='inline-flex';}
-  else{hdrAv.style.display='none';}
+  paintAvatar(document.getElementById('hdr-avatar-face')); // sempre visível: é a porta das Configurações
   const insight=calcInsight();
   document.getElementById('ai-badge-wrap').innerHTML=insight?`<div class="ai-badge">🤖 ${insight}</div>`:'';
   renderSparkline();
@@ -2250,7 +2253,16 @@ function goPg(p,btn){
   if(p==='tx')renderTxPage();
   if(p==='config')renderConfig();
 }
+// Configurações não tem botão na barra: abre pela foto/iniciais no topo da tela inicial.
+function openConfig(){
+  if(navigator.vibrate)navigator.vibrate(8);
+  document.querySelectorAll('.pg').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(e=>e.classList.remove('active'));
+  document.getElementById('pg-config').classList.add('active');
+  renderConfig();window.scrollTo(0,0);
+}
 function navTo(p){
+  if(p==='config'){openConfig();return;}
   const btns=document.querySelectorAll('.nb');
   let found=false;
   btns.forEach(btn=>{
@@ -2877,7 +2889,7 @@ window.addEventListener('pageshow',_onShow);
    reusando o mesmo sistema de .pg.active dos botões de baixo.
    Não altera nenhuma tela, dado ou cálculo existente.        */
 (function(){
-  const ORDER=['home','cartoes','renda','parc','tx','config'];
+  const ORDER=['home','cartoes','renda','parc','tx'];
   const app=document.getElementById('main-app');
   if(!app)return;
   const wrap=app.querySelector('.main-wrap');
@@ -2921,6 +2933,8 @@ window.addEventListener('pageshow',_onShow);
     if(busy)return false;
     if(app.style.display==='none')return false;
     if(document.querySelector('.ov.open'))return false;
+    const pa=document.querySelector('.pg.active');
+    if(pa&&pa.id==='pg-config')return false; // Config fica fora do swipe
     const ls=document.getElementById('lock-screen');
     if(ls&&ls.classList.contains('open'))return false;
     return !scrollableX(t);

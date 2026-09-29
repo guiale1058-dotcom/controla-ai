@@ -1,4 +1,4 @@
-const CACHE = 'controla-ai-v23';
+const CACHE = 'controla-ai-v24';
 const FILES = ['./index.html','./lock-core.js','./parcels-core.js','./balance-core.js','./fatura-core.js','./manifest.json','./icon-192.png','./icon-512.png','./bg.jpg'];
 
 self.addEventListener('install', e => {
