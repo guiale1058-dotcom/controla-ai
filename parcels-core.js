@@ -41,5 +41,24 @@
     }
     return rows;
   }
-  return { parcelaMensal, validarParcelamento, parcelaRows };
+  // Datas das parcelas no cartão: mesmo dia todo mês; se o mês não tem esse dia
+  // (ex.: 31 em fevereiro), usa o último dia do mês — nunca pula para o mês seguinte.
+  function datasParcelas(dataISO, n) {
+    const [y, m, d] = dataISO.split('-').map(Number);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const ano = y + Math.floor((m - 1 + i) / 12), mes = (m - 1 + i) % 12;
+      const ultimo = new Date(ano, mes + 1, 0).getDate();
+      out.push(ano + '-' + String(mes + 1).padStart(2, '0') + '-' + String(Math.min(d, ultimo)).padStart(2, '0'));
+    }
+    return out;
+  }
+  // Valores das parcelas somando exatamente o total: a diferença de centavos vai na última.
+  function valoresParcelas(total, n) {
+    const tc = Math.round(total * 100), base = Math.floor(tc / n);
+    const out = [];
+    for (let i = 0; i < n; i++) out.push((i === n - 1 ? tc - base * (n - 1) : base) / 100);
+    return out;
+  }
+  return { parcelaMensal, validarParcelamento, parcelaRows, datasParcelas, valoresParcelas };
 });

@@ -1099,6 +1099,7 @@ body::before{
 <script src="lock-core.js"></script>
 <script src="parcels-core.js"></script>
 <script src="balance-core.js"></script>
+<script src="fatura-core.js"></script>
 <script>
 const MN=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const CATS=[
@@ -1247,8 +1248,17 @@ let curY=now.getFullYear(),curM=now.getMonth();
 // ── NOVIDADES (aviso no 1º acesso após atualização) ──
 // Para avisar de uma nova atualização: suba APP_VERSION e adicione
 // um bloco novo no TOPO de NOVIDADES com essa mesma versão e os itens.
-const APP_VERSION=22;
+const APP_VERSION=23;
 const NOVIDADES=[
+  {v:23,itens:[
+    'Avisos da tela inicial agora são clicáveis, e tem aviso de fatura vencendo em breve',
+    'Segure o dedo num lançamento para editar',
+    'Compra parcelada no dia 29, 30 ou 31 não pula mais fevereiro, e os centavos fecham certinho',
+    'Excluir um cartão não derruba mais o seu saldo disponível',
+    'Fatura do cartão com vencimento certo: sem aviso falso de "venceu", e o pagamento quita a fatura certa',
+    'Resumo do ano não conta mais o salário duas vezes; resultado do mês não conta o cartão duas vezes',
+    'Correções: data do lançamento à noite e mês de término das parcelas',
+  ]},
   {v:22,itens:[
     'Novo "Disponível na conta": veja quanto você tem de dinheiro real agora',
     'Toque em "Corrigir" para ajustar o saldo ao valor do seu banco',
@@ -1316,7 +1326,7 @@ function parcInfo(p){
   const pv=parseFloat((p.total/p.nparc).toFixed(2));
   const rest=Math.max(0,p.nparc-p.pagas);
   const[sy,sm]=p.inicio.split('-').map(Number);
-  return{pv,rest,totalFalta:parseFloat((rest*pv).toFixed(2)),fim:new Date(sy,sm-1+p.nparc,1)};
+  return{pv,rest,totalFalta:parseFloat((rest*pv).toFixed(2)),fim:new Date(sy,sm-2+p.nparc,1)};
 }
 function fmtMes(d){return MN[d.getMonth()]+'/'+String(d.getFullYear()).slice(2)}
 function fmtDay(ds){const d=new Date(ds+'T12:00');return d.getDate().toString().padStart(2,'0')+'/'+MN[d.getMonth()]}
@@ -1411,10 +1421,12 @@ function faturaCartao(cid,y,m){
   }).reduce((s,t)=>s+t.val,0);
 }
 function getBillingYM(c){
-  let fatY=curY,fatM=curM;
+  // Mês atual: mostra a fatura que precisa ser paga agora (a fechada, se ainda tem saldo;
+  // senão a aberta). Outro mês navegado: a fatura daquele mês.
   const isCurrentMonth=curY===now.getFullYear()&&curM===now.getMonth();
-  if(isCurrentMonth&&now.getDate()>(c.fecha||1)){fatM++;if(fatM>11){fatM=0;fatY++;}}
-  return{fatY,fatM};
+  if(!isCurrentMonth)return{fatY:curY,fatM:curM};
+  const f=FaturaCore.faturaAPagar(hojeStr(),c.fecha||1,(y,m)=>faturaRestante(c.id,y,m));
+  return{fatY:f.y,fatM:f.m};
 }
 function limiteUsado(cid){
   // Limite usado = saldo devedor TOTAL do cartão (todas as compras em aberto,
@@ -1435,7 +1447,14 @@ function getTxCartao(cid){
     return stY===fatY&&stM===fatM;
   }).length;
 }
-function totalPagoFatura(cid,y,m){return S.tx.filter(t=>t.type==='pagamento_fatura'&&t.cartaoId===cid&&(()=>{const d=new Date(t.date+'T12:00');return d.getFullYear()===y&&d.getMonth()===m})()).reduce((s,t)=>s+t.val,0)}
+function totalPagoFatura(cid,y,m){
+  const c=getCartao(cid);const fecha=c?(c.fecha||1):1;
+  return S.tx.filter(t=>{
+    if(t.type!=='pagamento_fatura'||t.cartaoId!==cid)return false;
+    const f=FaturaCore.mesDoPagamento(t,fecha);
+    return f.y===y&&f.m===m;
+  }).reduce((s,t)=>s+t.val,0);
+}
 function faturaRestante(cid,y,m){return Math.max(0,faturaCartao(cid,y,m)-totalPagoFatura(cid,y,m))}
 
 function toggleHomeChart(){
@@ -1529,7 +1548,6 @@ function updateHome(){
   const uLiq=uBruto-uCusto;
   const desp=txs.filter(t=>t.type==='expense'&&!t.cartaoId).reduce((s,t)=>s+t.val,0);
   const despCard=S.tx.filter(t=>{if(t.type!=='expense'||!t.cartaoId)return false;const ct=getCartao(t.cartaoId);const{stY,stM}=txBillingMonth(t,ct?(ct.fecha||1):1);return stY===curY&&stM===curM;}).reduce((s,t)=>s+t.val,0);
-  const fatPago=txs.filter(t=>t.type==='pagamento_fatura').reduce((s,t)=>s+t.val,0);
   const parcTot=getMthParcTot(curY,curM);
 
   // DISPONÍVEL NA CONTA: dinheiro real agora (independente do mês navegado)
@@ -1537,7 +1555,7 @@ function updateHome(){
 
   // Movimento do mês selecionado (entradas e saídas)
   const entradas=rec+uLiq;
-  const saidas=desp+despCard+parcTot+fatPago;
+  const saidas=desp+despCard+parcTot; // pagamento de fatura não entra: a compra já contou em despCard
 
   document.getElementById('t-rec').textContent=fmt(rec);
   document.getElementById('t-uber').textContent=fmt(uLiq);
@@ -1585,16 +1603,16 @@ function updateHome(){
   if(parcTot>0&&rendaFixa()>0){const pct=Math.round(parcTot/rendaFixa()*100);alerts+=`<div class="alert alert-amber" onclick="navTo('parc')" style="cursor:pointer">💳 <strong>${fmt(parcTot)}</strong> em parcelas (${pct}% da renda) ›</div>`;}
   S.cartoes.forEach(c=>{const u=limiteUsado(c.id);if(c.limite>0&&u/c.limite>=0.8){const b=getBanco(c.bancoId);alerts+=`<div class="alert alert-red" onclick="navToCartao(${c.bancoId})" style="cursor:pointer">⚠️ ${b?b.nome+' ':''}<strong>${c.nome}</strong> — ${Math.round(u/c.limite*100)}% do limite ›</div>`;}});
   S.cartoes.forEach(c=>{
-    const rest=faturaRestante(c.id,curY,curM);
-    if(rest<=0)return;
     const mesAtual=curY===now.getFullYear()&&curM===now.getMonth();
     if(!mesAtual)return;
-    const hoje=now.getDate();
+    const f=FaturaCore.faturaFechada(hojeStr(),c.fecha||1);
+    const rest=faturaRestante(c.id,f.y,f.m);
+    if(rest<=0)return;
+    const dias=FaturaCore.diasAte(hojeStr(),FaturaCore.vencimento(f.y,f.m,c));
     const b=getBanco(c.bancoId);
-    if(hoje>c.venc){
+    if(dias<0){
       alerts+=`<div class="alert alert-red" onclick="navToCartao(${c.bancoId})" style="cursor:pointer">💳 Fatura ${b?b.nome+' ':''}<strong>${c.nome}</strong> venceu com <strong>${fmt(rest)}</strong> em aberto ›</div>`;
     }else{
-      const dias=c.venc-hoje;
       if(dias<=5){
         const quando=dias===0?'vence hoje':dias===1?'vence amanhã':'vence em '+dias+' dias';
         alerts+=`<div class="alert alert-amber" onclick="navToCartao(${c.bancoId})" style="cursor:pointer">💳 Fatura ${b?b.nome+' ':''}<strong>${c.nome}</strong> ${quando} — <strong>${fmt(rest)}</strong> ›</div>`;
@@ -1685,12 +1703,13 @@ function renderCartoes(){
       const pct=c.limite>0?Math.min(100,Math.round(usado/c.limite*100)):0;
       const barC=pct>=80?'#f87171':pct>=60?'#fbbf24':banco.cor;
       const fat=faturaCartao(c.id,fatY,fatM);
-      const hoje=now.getDate();
-      const vencBreve=fatY===now.getFullYear()&&fatM===now.getMonth()&&c.venc>=hoje&&c.venc<=hoje+5;
+      const vencISO=FaturaCore.vencimento(fatY,fatM,c);
+      const diasVenc=FaturaCore.diasAte(hojeStr(),vencISO);
+      const vencBreve=diasVenc>=0&&diasVenc<=5;
       const pago=totalPagoFatura(c.id,fatY,fatM);
       const rest=faturaRestante(c.id,fatY,fatM);
       const fatQuitada=fat>0&&rest===0;
-      const fatVencida=rest>0&&fatY===now.getFullYear()&&fatM===now.getMonth()&&hoje>c.venc;
+      const fatVencida=rest>0&&diasVenc<0;
       return`<div class="cartao-card" data-id="${c.id}" style="margin:0 12px 10px;border-color:${banco.cor}22">
         <div class="cc-top">
           <div>
@@ -1712,8 +1731,8 @@ function renderCartoes(){
         </div>
         <div class="cc-fatura">
           <div>
-            <div style="font-size:12px;color:var(--text2)">Fatura de ${MN[fatM]}</div>
-            ${vencBreve&&rest>0?'<div style="font-size:11px;color:var(--amber)">⚠️ Vence em breve (dia '+c.venc+')</div>':''}
+            <div style="font-size:12px;color:var(--text2)">Fatura de ${MN[fatM]} · vence ${vencISO.slice(8,10)}/${vencISO.slice(5,7)}</div>
+            ${vencBreve&&rest>0?'<div style="font-size:11px;color:var(--amber)">⚠️ Vence em breve ('+(diasVenc===0?'hoje':diasVenc===1?'amanhã':'em '+diasVenc+' dias')+')</div>':''}
             ${fatVencida?'<div style="font-size:11px;color:var(--red)">🔴 Em aberto após vencimento</div>':''}
           </div>
           <div style="text-align:right">
@@ -2064,7 +2083,10 @@ function renderResumoAnual(){
     const rendasM=S.renda.filter(r=>{const d=new Date(r.date+'T12:00');return d.getFullYear()===ano&&d.getMonth()===m});
     // salário conta do mês atual em diante (não retroage p/ meses passados sem despesas registradas);
     // coerente com as parcelas, que também se projetam p/ frente
-    const sal=rendaFixa()>0&&(ano<curY||(ano===curY&&m>=curM))?rendaFixa():0;
+    // e não entra no mês em que o usuário já lançou a receita "Salário" (senão conta 2x)
+    const hy=now.getFullYear(),hm=now.getMonth();
+    const lancouSal=txs.some(t=>t.type==='income'&&t.cat==='salario');
+    const sal=rendaFixa()>0&&!lancouSal&&(ano>hy||(ano===hy&&m>=hm))?rendaFixa():0;
     const rec=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.val,0)+rendasM.reduce((s,r)=>s+(r.val-(r.custo||0)),0)+sal;
     // Despesas pelo mês de faturamento do cartão (mesma regra da tela Início/Lançamentos),
     // senão o gasto de cartão feito após o fechamento caía no mês da compra em vez do mês da fatura.
@@ -2139,8 +2161,12 @@ function deleteTx(){
   if(t&&t.parcelaGrupoId){
     const restantes=S.tx.filter(x=>x.parcelaGrupoId===t.parcelaGrupoId&&x.parcelaNum>=t.parcelaNum);
     if(restantes.length>1){
-      if(!confirm(`Excluir parcela ${t.parcelaNum}/${t.parcelaTot}?\n\nOK = excluir esta e as ${restantes.length-1} restantes\nCancelar = só esta parcela`))return;
-      S.tx=S.tx.filter(x=>!(x.parcelaGrupoId===t.parcelaGrupoId&&x.parcelaNum>=t.parcelaNum));
+      if(confirm(`Excluir parcela ${t.parcelaNum}/${t.parcelaTot}?\n\nOK = excluir esta e as ${restantes.length-1} restantes\nCancelar = outras opções`)){
+        S.tx=S.tx.filter(x=>!(x.parcelaGrupoId===t.parcelaGrupoId&&x.parcelaNum>=t.parcelaNum));
+      }else{
+        if(!confirm(`Excluir só a parcela ${t.parcelaNum}/${t.parcelaTot}?\n\nOK = só esta\nCancelar = não excluir nada`))return;
+        S.tx=S.tx.filter(x=>x.id!==_editId);
+      }
     }else{
       if(!confirm('Excluir este lançamento?'))return;
       S.tx=S.tx.filter(x=>x.id!==_editId);
@@ -2192,7 +2218,7 @@ function refreshAll(){
 function exportarDados(){
   const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='controla-ai-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  a.download='controla-ai-backup-'+hojeStr()+'.json';
   a.click();showToast('📤 Exportado!');
 }
 function exportarCSV(){
@@ -2205,7 +2231,7 @@ function exportarCSV(){
   const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='controla-ai-lancamentos-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.download='controla-ai-lancamentos-'+hojeStr()+'.csv';
   a.click();showToast('📊 CSV exportado!');
 }
 
@@ -2283,7 +2309,7 @@ function openMainModal(){
 }
 function openTxModal(tp){
   S.txType=tp||'income';
-  document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('f-date').value=hojeStr();
   document.getElementById('f-desc').value='';
   _cents['f-val']=0;document.getElementById('f-val').value='';
   setTp(S.txType);fillCartaoSel();
@@ -2432,7 +2458,7 @@ async function confirmLockDisable(){
   closeOv('ov-lock-disable');renderLockRow();showToast('Trava desligada');
 }
 function openRendaModal(){
-  document.getElementById('r-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('r-date').value=hojeStr();
   ['r-obs','r-horas','r-km'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['r-val','r-custo'].forEach(id=>{_cents[id]=0;const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('renda-prev').style.display='none';
@@ -2452,22 +2478,24 @@ function openCartaoModal(bancoId){
   document.getElementById('ov-cartao').classList.add('open');
   setTimeout(initMasks,50);
 }
-let _pfCartaoId=null;
+let _pfCartaoId=null,_pfFat=null;
 function openPagarFatura(cid){
   _pfCartaoId=cid;
   const c=S.cartoes.find(x=>x.id===cid);
   if(!c)return;
   const b=S.bancos.find(x=>x.id===c.bancoId);
-  const fat=faturaCartao(cid,curY,curM);
-  const pago=totalPagoFatura(cid,curY,curM);
-  const rest=faturaRestante(cid,curY,curM);
-  document.getElementById('pf-nome').textContent=(b?b.nome+' ':'')+c.nome;
+  const{fatY,fatM}=getBillingYM(c);
+  _pfFat={y:fatY,m:fatM};
+  const fat=faturaCartao(cid,fatY,fatM);
+  const pago=totalPagoFatura(cid,fatY,fatM);
+  const rest=faturaRestante(cid,fatY,fatM);
+  document.getElementById('pf-nome').textContent=(b?b.nome+' ':'')+c.nome+' ('+MN[fatM]+')';
   document.getElementById('pf-total').textContent=fmt(fat);
   document.getElementById('pf-pago').textContent=fmt(pago);
   document.getElementById('pf-rest').textContent=fmt(rest);
   document.getElementById('pf-pago-row').style.display=pago>0?'flex':'none';
   setMoneyVal('pf-val',rest);
-  document.getElementById('pf-data').value=new Date().toISOString().split('T')[0];
+  document.getElementById('pf-data').value=hojeStr();
   document.getElementById('ov-pagar-fatura').classList.add('open');
   setTimeout(initMasks,50);
 }
@@ -2478,7 +2506,7 @@ function salvarPagamentoFatura(){
   const c=S.cartoes.find(x=>x.id===_pfCartaoId);
   if(!c)return;
   const b=S.bancos.find(x=>x.id===c.bancoId);
-  S.tx.push({id:S.nid++,type:'pagamento_fatura',cartaoId:_pfCartaoId,val,date,desc:'Pagamento Fatura '+(b?b.nome+' ':'')+c.nome});
+  S.tx.push({id:S.nid++,type:'pagamento_fatura',cartaoId:_pfCartaoId,val,date,fatY:_pfFat?_pfFat.y:undefined,fatM:_pfFat?_pfFat.m:undefined,desc:'Pagamento Fatura '+(b?b.nome+' ':'')+c.nome});
   saveState();
   closeOv('ov-pagar-fatura');
   refreshAll();
@@ -2565,12 +2593,10 @@ function saveTx(){
   if(parcelas>72){showToast('Máximo de 72 parcelas no cartão.');return;}
   if(parcelas>1){
     const gid=S.nid++;
-    const valParc=Math.round(val/parcelas*100)/100;
-    const base=new Date(date+'T12:00');
+    const datas=ParcelsCore.datasParcelas(date,parcelas);
+    const valores=ParcelsCore.valoresParcelas(val,parcelas);
     for(let i=0;i<parcelas;i++){
-      const d=new Date(base);d.setMonth(d.getMonth()+i);
-      const ds=d.toISOString().slice(0,10);
-      S.tx.push({id:S.nid++,type:S.txType,desc:`${desc} (${i+1}/${parcelas})`,val:valParc,cat,date:ds,cartaoId,parcelaGrupoId:gid,parcelaTot:parcelas,parcelaNum:i+1});
+      S.tx.push({id:S.nid++,type:S.txType,desc:`${desc} (${i+1}/${parcelas})`,val:valores[i],cat,date:datas[i],cartaoId,parcelaGrupoId:gid,parcelaTot:parcelas,parcelaNum:i+1});
     }
   }else{
     S.tx.push({id:S.nid++,type:S.txType,desc,val,cat,date,cartaoId});
@@ -2679,7 +2705,8 @@ function saveEditCartao(){
 }
 function deleteEditCartao(){
   if(!confirm('Excluir este cartão? As despesas vinculadas serão mantidas no histórico.'))return;
-  S.tx.filter(t=>t.cartaoId===_editId).forEach(t=>delete t.cartaoId);
+  // As compras mantêm o cartaoId (órfão): continuam sendo gasto de cartão no histórico.
+  // Apagar o vínculo transformava todas em despesa à vista e derrubava o Disponível.
   S.cartoes=S.cartoes.filter(x=>x.id!==_editId);
   saveState();closeOv('ov-edit-cartao');renderCartoes();updateHome();
 }

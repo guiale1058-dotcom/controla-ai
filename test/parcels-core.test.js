@@ -50,3 +50,20 @@ test('parcelaRows resume quando nparc > max (com marcadores de gap)', () => {
   // inclui a parcela atual (index 12)
   assert.ok(rows.some(r => r.i === 12));
 });
+
+test('datasParcelas: compra dia 31 nao pula fevereiro (usa ultimo dia do mes)', () => {
+  assert.deepStrictEqual(PC.datasParcelas('2027-01-31', 3), ['2027-01-31', '2027-02-28', '2027-03-31']);
+  assert.deepStrictEqual(PC.datasParcelas('2028-01-30', 2), ['2028-01-30', '2028-02-29']);
+  assert.deepStrictEqual(PC.datasParcelas('2026-08-31', 2), ['2026-08-31', '2026-09-30']);
+});
+
+test('datasParcelas: vira o ano e mantem o dia', () => {
+  assert.deepStrictEqual(PC.datasParcelas('2026-11-15', 3), ['2026-11-15', '2026-12-15', '2027-01-15']);
+});
+
+test('valoresParcelas: soma sempre bate com o total (centavo vai na ultima)', () => {
+  assert.deepStrictEqual(PC.valoresParcelas(100, 3), [33.33, 33.33, 33.34]);
+  assert.deepStrictEqual(PC.valoresParcelas(1000, 4), [250, 250, 250, 250]);
+  const v = PC.valoresParcelas(89.9, 7);
+  assert.strictEqual(Math.round(v.reduce((s, x) => s + x, 0) * 100), 8990);
+});
