@@ -71,6 +71,9 @@ body::before{
 .dot{width:6px;height:6px;border-radius:50%;background:var(--bg4);transition:all .3s}
 .dot.active{background:var(--purple);width:22px;border-radius:3px}
 .onb-next{width:100%;padding:15px;background:linear-gradient(135deg,#1d4ed8,#0ea5e9);border:none;color:#fff;border-radius:var(--rs);font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-.1px;box-shadow:0 4px 24px rgba(37,99,235,.3);transition:transform .15s,box-shadow .15s}
+.onb-google{width:100%;margin-top:12px;padding:13px;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.22);color:#fff;border-radius:var(--rs);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:transform .15s,background .15s}
+.onb-google:active{transform:scale(.97);background:rgba(255,255,255,.12)}
+.onb-google .g-ic{width:20px;height:20px;flex:none}
 .onb-next:active{transform:scale(.97);box-shadow:0 2px 12px var(--glow-purple)}
 .onb-skip{background:none;border:none;color:var(--text2);text-shadow:0 1px 4px rgba(8,8,16,.5);font-size:14px;cursor:pointer;font-family:inherit;padding:12px;display:block;margin:0 auto;transition:color .2s}
 .onb-skip:hover{color:var(--text2)}
@@ -597,6 +600,7 @@ body::before{
     <div class="onb-footer">
       <div class="onb-dots"><div class="dot active"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
       <button class="onb-next" onclick="goStep(2)">Começar →</button>
+      <button class="onb-google" onclick="entrarPeloOnboarding()"><svg class="g-ic" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 38.2 44 33 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Já uso o app — entrar com Google</button>
     </div>
   </div>
   <div class="onb-step" id="step-2">
@@ -1087,6 +1091,18 @@ body::before{
     <p class="nv-sub">Veja o que melhorou no app</p>
     <div id="nv-lista" class="nv-list"></div>
     <button class="bpri nv-btn" onclick="closeNovidades()">Entendi! 👍</button>
+  </div>
+</div>
+
+<div class="ov" id="ov-escolha-sync">
+  <div class="mdl"><div class="mdl-handle"></div>
+    <h2>Quais dados você quer manter?</h2>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Sua conta e este aparelho têm dados diferentes. Escolha um lado — o outro será substituído.</p>
+    <div class="card" style="margin:0 0 10px"><div style="font-weight:600">☁️ Na sua conta</div><div id="esc-conta" style="font-size:13px;color:var(--text2);margin-top:4px"></div></div>
+    <div class="card" style="margin:0 0 16px"><div style="font-weight:600">📱 Neste aparelho</div><div id="esc-aqui" style="font-size:13px;color:var(--text2);margin-top:4px"></div></div>
+    <button class="bpri" id="esc-btn-conta">Usar os da conta</button>
+    <button class="bcan" style="margin-top:8px" id="esc-btn-aqui">Manter os deste aparelho</button>
+    <button class="bcan" style="margin-top:8px" id="esc-btn-cancel">Cancelar</button>
   </div>
 </div>
 
@@ -2730,6 +2746,36 @@ function renderSyncRow(){
       <span style="font-size:12px;color:var(--red);cursor:pointer" onclick="excluirContaSync()">Excluir minha conta</span>
     </div>`;
 }
+function txtResumo(r){
+  const p=(n,s,pl)=>n+' '+(n===1?s:pl);
+  return p(r.lancamentos,'lançamento','lançamentos')+' · '+p(r.bancos,'banco','bancos')+' · '+p(r.cartoes,'cartão','cartões')+' · '+p(r.parcs,'parcelamento','parcelamentos');
+}
+// 1º login com dados dos dois lados: a pessoa escolhe (nunca junta sozinho).
+function pedirEscolhaSync(conta,aqui){
+  return new Promise(resolve=>{
+    document.getElementById('esc-conta').textContent=txtResumo(conta);
+    document.getElementById('esc-aqui').textContent=txtResumo(aqui);
+    const ov=document.getElementById('ov-escolha-sync');
+    const fim=v=>{ov.classList.remove('open');resolve(v);};
+    document.getElementById('esc-btn-conta').onclick=()=>fim('conta');
+    document.getElementById('esc-btn-aqui').onclick=()=>{
+      if(confirm('Os dados da sua conta serão SUBSTITUÍDOS pelos deste aparelho, em todos os aparelhos. Continuar?'))fim('aparelho');
+    };
+    document.getElementById('esc-btn-cancel').onclick=()=>fim(null);
+    ov.classList.add('open');
+  });
+}
+async function entrarPeloOnboarding(){
+  try{
+    const ok=await Sync.entrar();
+    if(!ok)return;
+    markNovidadesVistas();
+    localStorage.setItem(SALDO_CONFIRM_KEY,'1'); // o saldo veio da conta
+    markDone();
+    enterApp();
+    showToast('☁️ Seus dados chegaram!');
+  }catch(e){console.error(e);showToast('Não foi possível entrar. Tente de novo.');}
+}
 function openPrivacidade(){document.getElementById('ov-privacidade').classList.add('open');}
 async function entrarSync(){
   try{
@@ -3068,7 +3114,8 @@ Sync.configurar({
 });
 Sync.iniciar();
 if(isFirstTime()){
-  markNovidadesVistas();  // usuário novo já começa na versão atual: sem changelog no 1º cadastro
+  markNovidadesVistas();
+  Sync.preparar(); // "Já uso o app — entrar com Google": popup precisa abrir colado no toque  // usuário novo já começa na versão atual: sem changelog no 1º cadastro
   document.getElementById('onboarding').style.display='flex';
   document.getElementById('main-app').style.display='none';
 }else if(lockEnabled()){
