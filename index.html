@@ -293,6 +293,13 @@ body::before{
 /* ── HOME CHART ─────────────────────────── */
 .home-chart-card{background:var(--bg2);border-radius:var(--rc);padding:14px 16px}
 .home-chart-title{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.6px;padding-bottom:12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.ra-hd{display:flex;align-items:center;gap:8px;cursor:pointer;-webkit-user-select:none;user-select:none}
+.ra-tit{font-size:13px;color:var(--text2);font-weight:600}
+.ra-ano-btn{background:rgba(255,255,255,.06);border:none;color:var(--text2);width:26px;height:26px;border-radius:8px;font-size:15px;cursor:pointer;font-family:inherit;line-height:1}
+.ra-ano-btn:disabled{opacity:.3;cursor:default}
+.ra-saldo{margin-left:auto;font-size:13px;font-weight:600}
+.ra-chev{color:var(--text3);font-size:13px;transition:transform .25s}
+.ra-body{overflow:hidden;transition:max-height .35s ease}
 .home-chart-body{display:flex;flex-direction:column;align-items:center;gap:12px;overflow:hidden;transition:max-height .35s ease}
 .home-chart-legend{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;width:100%}
 .home-chart-legend .legend-row{font-size:11px}
@@ -2171,9 +2178,22 @@ function renderConfig(){
   renderLockRow();
 }
 
+// Resumo do ano: recolhível (lembra o estado neste aparelho) e com ‹ › para ver anos anteriores.
+let _resumoAno=null;
+function resumoAnoMudar(ev,d){ev.stopPropagation();_resumoAno=(_resumoAno||now.getFullYear())+d;renderResumoAnual();}
+function toggleResumoAnual(){
+  const body=document.querySelector('#resumo-anual .ra-body');if(!body)return;
+  const abrir=body.style.maxHeight==='0px';
+  body.style.maxHeight=abrir?body.scrollHeight+'px':'0px';
+  const chev=document.querySelector('#resumo-anual .ra-chev');if(chev)chev.style.transform=abrir?'rotate(180deg)':'';
+  try{localStorage.setItem('ra_open',abrir?'1':'0');}catch(e){}
+}
 function renderResumoAnual(){
   const el=document.getElementById('resumo-anual');
-  const ano=curY;
+  if(_resumoAno===null)_resumoAno=now.getFullYear();
+  const ano=_resumoAno;
+  const anos=[...S.tx.map(t=>t.date),...S.renda.map(r=>r.date)].map(d=>+String(d).slice(0,4)).filter(Boolean);
+  const anoMin=Math.min(now.getFullYear(),...anos);
   const meses=[];
   let maxRec=0,maxDesp=0;
   for(let m=0;m<12;m++){
@@ -2197,7 +2217,15 @@ function renderResumoAnual(){
   const totalRec=meses.reduce((s,x)=>s+x.rec,0);
   const totalDesp=meses.reduce((s,x)=>s+x.desp,0);
 
-  el.innerHTML=`<div style="font-size:13px;color:var(--text2);margin-bottom:12px">Ano ${ano}</div>`+
+  const saldoAno=totalRec-totalDesp;
+  let aberto=false;try{aberto=localStorage.getItem('ra_open')==='1';}catch(e){}
+  el.innerHTML=`<div class="ra-hd" onclick="toggleResumoAnual()">
+      <button class="ra-ano-btn" onclick="resumoAnoMudar(event,-1)" ${ano<=anoMin?'disabled':''} aria-label="Ano anterior">‹</button>
+      <span class="ra-tit">Ano ${ano}</span>
+      <button class="ra-ano-btn" onclick="resumoAnoMudar(event,1)" ${ano>=now.getFullYear()+1?'disabled':''} aria-label="Próximo ano">›</button>
+      <span class="ra-saldo" style="color:${saldoAno>=0?'var(--green)':'var(--red)'}">${fmt(saldoAno)}</span>
+      <span class="ra-chev" style="${aberto?'transform:rotate(180deg)':''}">⌄</span>
+    </div><div class="ra-body" style="max-height:${aberto?'none':'0px'}"><div style="height:12px"></div>`+
     meses.map(({m,rec,desp})=>{
       const wr=Math.max(2,Math.round(rec/maxV*100));
       const wd=Math.max(2,Math.round(desp/maxV*100));
@@ -2215,7 +2243,8 @@ function renderResumoAnual(){
       <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text2)">Total receitas</span><span style="color:var(--green)">${fmt(totalRec)}</span></div>
       <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text2)">Total despesas</span><span style="color:var(--red)">${fmt(totalDesp)}</span></div>
       <div style="display:flex;justify-content:space-between;font-weight:500"><span>Saldo anual</span><span style="color:${totalRec-totalDesp>=0?'var(--green)':'var(--red)'}">${fmt(totalRec-totalDesp)}</span></div>
-    </div>`;
+    </div></div>`;
+  if(aberto){const b=el.querySelector('.ra-body');b.style.maxHeight=b.scrollHeight+'px';}
 }
 
 // ── EDITAR / EXCLUIR ──────────────────────────────
