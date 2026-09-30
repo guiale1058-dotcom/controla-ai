@@ -397,6 +397,9 @@ body::before{
   background:var(--bg3);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:13px 14px}
 .nv-item .nv-ic{flex-shrink:0;font-size:15px;line-height:1.4}
 .nv-btn{margin-top:4px}
+.nv-ver{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--text3);margin-top:6px;text-align:left}
+.nv-ver:first-child{margin-top:0}
+.nv-ver b{color:var(--purple)}
 
 /* ── FORMULÁRIOS ────────────────────────────── */
 .fg{margin-bottom:14px}
@@ -791,6 +794,13 @@ body::before{
         <div class="config-row" style="cursor:pointer" onclick="onLockRowClick()">
           <span class="config-lbl">🔒 Trava de acesso</span>
           <span class="config-val" id="cfg-lock-val">—</span>
+        </div>
+      </div>
+      <div class="sec-t" style="margin-top:8px">Sobre o app</div>
+      <div class="card">
+        <div class="config-row" style="cursor:pointer" onclick="openHistoricoNovidades()">
+          <span class="config-lbl">✨ Versão <span id="cfg-versao">—</span></span>
+          <span class="config-val">Novidades ›</span>
         </div>
       </div>
       <button class="export-btn" onclick="exportarDados()">📤 Exportar dados (backup JSON)</button>
@@ -2144,6 +2154,7 @@ function renderTxPage(){
 // ── RENDER CONFIG ──────────────────────────────────
 function renderConfig(){
   const p=S.perfil;
+  document.getElementById('cfg-versao').textContent=APP_VERSION;
   paintAvatar(document.getElementById('cfg-avatar-face'));
   document.getElementById('foto-remove').style.display=p.foto?'block':'none';
   document.getElementById('cfg-nome-val').textContent=p.nome||'—';
@@ -2632,6 +2643,15 @@ function checkNovidades(){
   document.getElementById('ov-novidades').classList.add('open');
 }
 function closeNovidades(){closeOv('ov-novidades');}
+// Config → "Versão · Novidades": reabre o aviso a qualquer momento, com o histórico por versão.
+function openHistoricoNovidades(){
+  document.getElementById('nv-lista').innerHTML=NOVIDADES.map(n=>
+    `<div class="nv-ver">Versão ${n.v}${n.v===APP_VERSION?' <b>· atual</b>':''}</div>`+
+    n.itens.map(t=>`<div class="nv-item"><span class="nv-ic">✨</span><span>${t}</span></div>`).join('')
+  ).join('');
+  markNovidadesVistas();
+  document.getElementById('ov-novidades').classList.add('open');
+}
 
 // Pede ao usuário ANTIGO (que já tem lançamentos) para confirmar o saldo real, 1 vez.
 const SALDO_CONFIRM_KEY='controla_saldo_confirmado_v1';
