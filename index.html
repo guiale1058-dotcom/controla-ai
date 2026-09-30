@@ -803,6 +803,8 @@ body::before{
           <span class="config-val" id="cfg-lock-val">—</span>
         </div>
       </div>
+      <div class="sec-t" style="margin-top:8px">Sincronização</div>
+      <div class="card" id="cfg-sync"></div>
       <div class="sec-t" style="margin-top:8px">Sobre o app</div>
       <div class="card">
         <div class="config-row" style="cursor:pointer" onclick="openHistoricoNovidades()">
@@ -1085,6 +1087,19 @@ body::before{
     <p class="nv-sub">Veja o que melhorou no app</p>
     <div id="nv-lista" class="nv-list"></div>
     <button class="bpri nv-btn" onclick="closeNovidades()">Entendi! 👍</button>
+  </div>
+</div>
+
+<div class="ov" id="ov-privacidade">
+  <div class="mdl"><div class="mdl-handle"></div>
+    <h2>Privacidade</h2>
+    <div style="font-size:14px;color:var(--text2);line-height:1.55">
+      <p><b>Sem login</b>, seus dados ficam só neste aparelho.</p>
+      <p style="margin-top:10px"><b>Com login</b>, uma cópia dos dados do app (lançamentos, bancos, cartões, parcelas, renda extra, perfil e foto) fica guardada no Google Firebase, em São Paulo, para aparecer nos seus outros aparelhos.</p>
+      <p style="margin-top:10px"><b>Só você</b> acessa os seus dados. A trava de PIN/biometria nunca sai do aparelho.</p>
+      <p style="margin-top:10px">Para apagar tudo da nuvem: <b>Configurações → Sincronização → Excluir minha conta</b>.</p>
+    </div>
+    <button class="bpri" style="margin-top:18px" onclick="closeOv('ov-privacidade')">Entendi</button>
   </div>
 </div>
 
@@ -2175,6 +2190,7 @@ function renderTxPage(){
 function renderConfig(){
   const p=S.perfil;
   document.getElementById('cfg-versao').textContent=APP_VERSION;
+  renderSyncRow();
   paintAvatar(document.getElementById('cfg-avatar-face'));
   document.getElementById('foto-remove').style.display=p.foto?'block':'none';
   document.getElementById('cfg-nome-val').textContent=p.nome||'—';
@@ -2686,6 +2702,45 @@ function checkNovidades(){
 }
 function closeNovidades(){closeOv('ov-novidades');}
 // Config → "Versão · Novidades": reabre o aviso a qualquer momento, com o histórico por versão.
+// ── SINCRONIZAÇÃO (Config) ───────────────────────
+function fmtHaQuanto(ms){
+  if(!ms)return '';
+  const s=Math.round((Date.now()-ms)/1000);
+  if(s<60)return 'agora há pouco';
+  const m=Math.round(s/60);return m<60?'há '+m+' min':'há '+Math.round(m/60)+' h';
+}
+function renderSyncRow(){
+  const el=document.getElementById('cfg-sync');if(!el)return;
+  const e=(window.Sync&&Sync.estado)||{logado:false};
+  if(!e.logado){
+    el.innerHTML=`<div style="font-size:13px;color:var(--text2);margin-bottom:10px">☁️ Use seus dados em outros aparelhos. Entre com a sua conta Google e tudo fica igual no celular e no computador.</div>
+      <button class="bpri" onclick="entrarSync()">Entrar com Google</button>
+      <div style="text-align:center;margin-top:10px"><span style="font-size:12px;color:var(--purple);cursor:pointer" onclick="openPrivacidade()">Privacidade</span></div>`;
+    if(window.Sync)Sync.preparar(); // baixa o SDK já, para o popup do Google abrir colado no toque
+    return;
+  }
+  const st={ok:'✓ Sincronizado '+fmtHaQuanto(e.ultima),enviando:'⏳ Enviando…',
+    offline:'📴 Sem internet'+(e.pendentes?' — '+e.pendentes+' alteraç'+(e.pendentes>1?'ões':'ão')+' esperando':''),
+    erro:'⚠️ Não foi possível sincronizar — tentando de novo',off:'…'}[e.status]||'…';
+  el.innerHTML=`<div class="config-row"><span class="config-lbl">Conta</span><span class="config-val" style="font-size:12px">${e.email||'—'}</span></div>
+    <div class="config-row"><span class="config-lbl">Status</span><span class="config-val" style="font-size:12px">${st}</span></div>
+    <button class="bcan" style="margin-top:8px" onclick="sairSync()">Sair da conta</button>
+    <div style="display:flex;justify-content:space-between;margin-top:10px">
+      <span style="font-size:12px;color:var(--purple);cursor:pointer" onclick="openPrivacidade()">Privacidade</span>
+      <span style="font-size:12px;color:var(--red);cursor:pointer" onclick="excluirContaSync()">Excluir minha conta</span>
+    </div>`;
+}
+function openPrivacidade(){document.getElementById('ov-privacidade').classList.add('open');}
+async function entrarSync(){
+  try{
+    const ok=await Sync.entrar();
+    if(ok)showToast('☁️ Sincronização ligada');
+  }catch(e){console.error(e);showToast('Não foi possível entrar. Tente de novo.');}
+  renderSyncRow();refreshAll();
+}
+// Definidas de verdade na Task 7; aqui só para os botões não quebrarem.
+function sairSync(){showToast('Em breve');}
+function excluirContaSync(){showToast('Em breve');}
 function openHistoricoNovidades(){
   document.getElementById('nv-lista').innerHTML=NOVIDADES.map(n=>
     `<div class="nv-ver">Versão ${n.v}${n.v===APP_VERSION?' <b>· atual</b>':''}</div>`+
@@ -2970,7 +3025,7 @@ function finishOnboarding(){
 }
 
 // FECHAR MODAL CLICANDO FORA
-['ov-main','ov-tx','ov-edit-tx','ov-renda','ov-edit-renda','ov-edit-parc','ov-banco','ov-cartao','ov-pagar-fatura','ov-config','ov-saldo','ov-edit-banco','ov-edit-cartao'].forEach(id=>{
+['ov-main','ov-tx','ov-edit-tx','ov-renda','ov-edit-renda','ov-edit-parc','ov-banco','ov-cartao','ov-pagar-fatura','ov-config','ov-saldo','ov-edit-banco','ov-edit-cartao','ov-privacidade'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('click',e=>{if(e.target===el)closeOv(id);});
 });
