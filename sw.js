@@ -1,5 +1,5 @@
 const CACHE = 'controla-ai-v24';
-const FILES = ['./index.html','./lock-core.js','./parcels-core.js','./balance-core.js','./fatura-core.js','./manifest.json','./icon-192.png','./icon-512.png','./bg.jpg'];
+const FILES = ['./index.html','./lock-core.js','./parcels-core.js','./balance-core.js','./fatura-core.js','./ordem-core.js','./manifest.json','./icon-192.png','./icon-512.png','./bg.jpg'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));

@@ -541,6 +541,9 @@ body::before{
   -webkit-user-select:none;user-select:none;
 }
 .banco-trigger:active{background:rgba(255,255,255,.04)}
+.banco-trigger{-webkit-touch-callout:none}
+.banco-item.lifting{position:relative;z-index:5;box-shadow:0 14px 34px rgba(0,0,0,.55),0 0 0 1px rgba(124,140,255,.35);transform:scale(1.02);transition:transform .15s,box-shadow .15s}
+.banco-item.dragging{transition:box-shadow .15s}
 .banco-logo2{
   width:42px;height:42px;border-radius:12px;
   display:flex;align-items:center;justify-content:center;
@@ -1101,6 +1104,7 @@ body::before{
 <script src="parcels-core.js"></script>
 <script src="balance-core.js"></script>
 <script src="fatura-core.js"></script>
+<script src="ordem-core.js"></script>
 <script>
 const MN=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const CATS=[
@@ -1773,8 +1777,9 @@ function renderCartoes(){
     </div>`;
   }).join('');
   S.bancos.forEach(banco=>{
-    const trigger=lista.querySelector('#banco-item-'+banco.id+' .banco-trigger');
-    if(trigger)addLongPress(trigger,()=>openEditBanco(banco.id));
+    const item=lista.querySelector('#banco-item-'+banco.id);
+    const trigger=item&&item.querySelector('.banco-trigger');
+    if(trigger)addBancoDrag(item,trigger,banco.id);
     S.cartoes.filter(c=>c.bancoId===banco.id).forEach(c=>{
       const card=lista.querySelector('.cartao-card[data-id="'+c.id+'"]');
       if(card)addLongPress(card,()=>openEditCartao(c.id));
@@ -1782,6 +1787,81 @@ function renderCartoes(){
   });
 }
 
+// Segurar o banco: soltar sem mexer = editar (como antes); arrastar = mudar a ordem.
+// Durante o arrasto a tela não rola e o swipe entre abas não dispara (stopPropagation).
+function suprimirClique(){
+  const h=e=>{e.stopPropagation();e.preventDefault();window.removeEventListener('click',h,true);};
+  window.addEventListener('click',h,true);
+  setTimeout(()=>window.removeEventListener('click',h,true),500);
+}
+function addBancoDrag(item,trigger,bancoId){
+  const HOLD=450;
+  let timer=null,armed=false,dragging=false,sx=0,sy=0,dy=0;
+  let itens=[],meios=[],de=0,para=0,altura=0,rect=null;
+  const pt=e=>e.touches?e.touches[0]:e;
+  function limpar(){
+    clearTimeout(timer);timer=null;
+    item.classList.remove('lifting','dragging');
+    itens.forEach(el=>{el.style.transform='';el.style.transition='';});
+    item.style.transform='';
+    armed=false;dragging=false;itens=[];
+    window.removeEventListener('mousemove',move);window.removeEventListener('mouseup',end);
+  }
+  function start(e){
+    if(e.touches&&e.touches.length!==1)return;
+    if(e.target.closest('button'))return; // lápis continua sendo toque normal
+    const p=pt(e);sx=p.clientX;sy=p.clientY;dy=0;armed=false;dragging=false;
+    clearTimeout(timer);
+    timer=setTimeout(()=>{armed=true;if(navigator.vibrate)navigator.vibrate(30);item.classList.add('lifting');},HOLD);
+    if(!e.touches){window.addEventListener('mousemove',move);window.addEventListener('mouseup',end);}
+  }
+  function comecarArrasto(){
+    dragging=true;item.classList.add('dragging');
+    itens=[...document.querySelectorAll('#bancos-lista .banco-item')];
+    de=itens.indexOf(item);para=de;
+    const rs=itens.map(el=>el.getBoundingClientRect());
+    meios=rs.map(r=>r.top+r.height/2);rect=rs[de];
+    altura=rect.height+(parseFloat(getComputedStyle(item).marginBottom)||0);
+    itens.forEach(el=>{if(el!==item)el.style.transition='transform .15s';});
+  }
+  function move(e){
+    const p=pt(e);dy=p.clientY-sy;
+    if(!armed){
+      if(Math.abs(dy)>8||Math.abs(p.clientX-sx)>8){clearTimeout(timer);timer=null;} // é rolagem, não segurar
+      return;
+    }
+    if(e.cancelable)e.preventDefault();
+    e.stopPropagation();
+    if(!dragging&&Math.abs(dy)>6)comecarArrasto();
+    if(!dragging)return;
+    item.style.transform='translateY('+dy+'px) scale(1.02)';
+    para=OrdemCore.novoIndice(meios,de,rect.top+rect.height/2+dy);
+    itens.forEach((el,i)=>{if(el!==item)el.style.transform='translateY('+OrdemCore.deslocamento(i,de,para,altura)+'px)';});
+  }
+  function end(e){
+    if(dragging){
+      if(e&&e.stopPropagation)e.stopPropagation();
+      const mudou=para!==de;
+      const abertos=[...document.querySelectorAll('#bancos-lista .banco-item.open')].map(el=>el.id);
+      limpar();suprimirClique();
+      if(mudou){
+        S.bancos=OrdemCore.mover(S.bancos,de,para);
+        saveState();renderCartoes();
+        abertos.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('open');});
+      }
+    }else if(armed){
+      limpar();suprimirClique();openEditBanco(bancoId);
+    }else{
+      limpar(); // toque normal: o click abre/fecha o banco
+    }
+  }
+  trigger.addEventListener('touchstart',start,{passive:true});
+  trigger.addEventListener('touchmove',move,{passive:false});
+  trigger.addEventListener('touchend',end);
+  trigger.addEventListener('touchcancel',()=>limpar());
+  trigger.addEventListener('mousedown',start);
+  trigger.addEventListener('contextmenu',e=>e.preventDefault());
+}
 function toggleBanco(id){
   const item=document.getElementById('banco-item-'+id);
   if(!item)return;
