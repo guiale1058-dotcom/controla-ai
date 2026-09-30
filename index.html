@@ -3151,8 +3151,8 @@ Sync.configurar({
 });
 Sync.iniciar();
 if(isFirstTime()){
-  markNovidadesVistas();
-  Sync.preparar(); // "Já uso o app — entrar com Google": popup precisa abrir colado no toque  // usuário novo já começa na versão atual: sem changelog no 1º cadastro
+  markNovidadesVistas();  // usuário novo já começa na versão atual: sem changelog no 1º cadastro
+  Sync.preparar(); // "Já uso o app — entrar com Google": popup precisa abrir colado no toque
   document.getElementById('onboarding').style.display='flex';
   document.getElementById('main-app').style.display='none';
 }else if(lockEnabled()){

@@ -12,7 +12,7 @@
   };
   const UID_KEY = 'controla_sync_uid';
   const baseKey = uid => 'controla_sync_base_' + uid;
-  let fb = null, auth = null, db = null, user = null, unsub = null, timer = null, enviando = false;
+  let fb = null, auth = null, db = null, user = null, unsub = null, timer = null, enviando = false, denovo = false;
   let cb = { getS: null, setS: null, onStatus: () => {}, pedirEscolha: async () => null };
   const estado = { logado: false, email: '', status: 'off', pendentes: 0, ultima: 0 };
 
@@ -58,7 +58,8 @@
   }
 
   async function enviar() {
-    if (!user || enviando) return;
+    if (!user) return;
+    if (enviando) { denovo = true; return; } // mudança feita durante um envio: manda logo depois
     const uid = user.uid;
     const base = lerBase(uid);
     const atual = SyncCore.itensDe(cb.getS());
@@ -78,7 +79,10 @@
       console.error('[Sync] envio falhou', e);
       status(navigator.onLine ? 'erro' : 'offline', { pendentes: n });
       clearTimeout(timer); timer = setTimeout(enviar, 15000); // tenta de novo
-    } finally { enviando = false; }
+    } finally {
+      enviando = false;
+      if (denovo) { denovo = false; agendar(); }
+    }
   }
 
   function agendar() {
@@ -93,7 +97,8 @@
       // Eco das nossas gravações NÃO é descartado aqui: enquanto o envio não confirma, a base
       // ainda não mudou, então a chave conta como "pendente" e aplicarRemotos a ignora.
       // (Descartar o snapshot inteiro poderia perder mudança remota que veio junto.)
-      const docs = snap.docChanges().map(ch => Object.assign({ chave: ch.doc.id }, ch.doc.data()));
+      // 'removed' = documento apagado de verdade (excluir conta em outro aparelho): vale como apagado.
+      const docs = snap.docChanges().map(ch => Object.assign({ chave: ch.doc.id }, ch.doc.data(), ch.type === 'removed' ? { del: true } : {}));
       if (!docs.length) return;
       const r = SyncCore.aplicarRemotos(cb.getS(), lerBase(uid), docs);
       gravarBase(uid, r.base);
