@@ -1124,6 +1124,7 @@ body::before{
 <script src="ordem-core.js"></script>
 <script src="ids-core.js"></script>
 <script src="sync-core.js"></script>
+<script src="sync.js"></script>
 <script>
 const MN=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const CATS=[
@@ -1221,6 +1222,14 @@ function loadState(){
 }
 function saveState(){
   try{localStorage.setItem(KEY,JSON.stringify(S));showToast();}catch(e){}
+  if(window.Sync)Sync.agendar(); // sem login não faz nada
+}
+// Chegou dado de outro aparelho: grava local SEM reagendar envio e redesenha a tela.
+function aplicarDaNuvem(novo){
+  S=novo;
+  try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+  refreshAll();
+  const pa=document.querySelector('.pg.active');if(pa&&pa.id==='pg-config')renderConfig();
 }
 // Próximo id: por relógio (não repete entre aparelhos). S.nid guarda o ÚLTIMO emitido.
 function proxId(){S.nid=IdsCore.novoId(S.nid);return S.nid;}
@@ -2996,6 +3005,13 @@ function enterApp(){
   document.getElementById('main-app').style.display='block';
   initApp();
 }
+Sync.configurar({
+  getS:()=>S,
+  setS:aplicarDaNuvem,
+  onStatus:()=>{if(typeof renderSyncRow==='function')renderSyncRow();},
+  pedirEscolha:(conta,aqui)=>typeof pedirEscolhaSync==='function'?pedirEscolhaSync(conta,aqui):Promise.resolve(null),
+});
+Sync.iniciar();
 if(isFirstTime()){
   markNovidadesVistas();  // usuário novo já começa na versão atual: sem changelog no 1º cadastro
   document.getElementById('onboarding').style.display='flex';
