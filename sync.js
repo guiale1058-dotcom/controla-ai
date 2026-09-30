@@ -20,16 +20,21 @@
   function lerBase(uid) { try { return JSON.parse(localStorage.getItem(baseKey(uid)) || '{}'); } catch (e) { return {}; } }
   function gravarBase(uid, b) { localStorage.setItem(baseKey(uid), JSON.stringify(b)); }
 
-  async function carregarSDK() {
-    if (fb) return fb;
-    const u = m => 'https://www.gstatic.com/firebasejs/' + FB_VER + '/firebase-' + m + '.js';
-    const [app, a, f] = await Promise.all([import(u('app')), import(u('auth')), import(u('firestore'))]);
-    const inst = app.initializeApp(CFG);
-    auth = a.getAuth(inst);
-    await a.setPersistence(auth, a.browserLocalPersistence);
-    db = f.getFirestore(inst);
-    fb = { a, f };
-    return fb;
+  // Uma carga só: quem chama durante o download espera a MESMA promessa
+  // (antes, um toque em "Entrar" no meio do pré-carregamento inicializava o Firebase 2x e dava erro).
+  let carga = null;
+  function carregarSDK() {
+    if (!carga) carga = (async () => {
+      const u = m => 'https://www.gstatic.com/firebasejs/' + FB_VER + '/firebase-' + m + '.js';
+      const [app, a, f] = await Promise.all([import(u('app')), import(u('auth')), import(u('firestore'))]);
+      const inst = app.initializeApp(CFG);
+      auth = a.getAuth(inst);
+      await a.setPersistence(auth, a.browserLocalPersistence);
+      db = f.getFirestore(inst);
+      fb = { a, f };
+      return fb;
+    })().catch(e => { carga = null; throw e; }); // falhou (offline): permite tentar de novo
+    return carga;
   }
   const colRef = uid => fb.f.collection(db, 'users', uid, 'itens');
 
@@ -184,11 +189,64 @@
     }
   }
 
+  function limparLocal(uid) {
+    localStorage.removeItem(baseKey(uid));
+    localStorage.removeItem(UID_KEY);
+    Object.assign(estado, { logado: false, email: '', pendentes: 0, ultima: 0 });
+  }
+  async function sair() {
+    await carregarSDK();
+    const uid = user && user.uid;
+    if (unsub) unsub(); unsub = null; clearTimeout(timer);
+    await fb.a.signOut(auth);
+    user = null;
+    if (uid) limparLocal(uid);
+    status('off');
+  }
+  async function apagarNuvem(uid) {
+    const snap = await fb.f.getDocs(colRef(uid));
+    const refs = snap.docs.map(d => d.ref);
+    for (let i = 0; i < refs.length; i += 450) {
+      const b = fb.f.writeBatch(db); refs.slice(i, i + 450).forEach(r => b.delete(r)); await b.commit();
+    }
+  }
+  // Apagar todos os dados COM login: marca tudo como apagado (os outros aparelhos apagam também).
+  async function apagarTudo() {
+    if (!user) return;
+    const uid = user.uid;
+    const base = lerBase(uid);
+    const dels = Object.keys(base).filter(k => k !== 'perfil-0').map(k => ({ chave: k, col: base[k].col, id: base[k].id }));
+    await gravarOps(uid, [], dels);
+    gravarBase(uid, {});
+  }
+  // O Google exige login recente para excluir. Confirmar ANTES de apagar qualquer dado
+  // (senão a nuvem seria apagada e a exclusão da conta poderia falhar no meio).
+  function precisaReautenticar() {
+    if (!user) return false;
+    const t = Date.parse(user.metadata && user.metadata.lastSignInTime);
+    return !t || Date.now() - t > 4 * 60 * 1000;
+  }
+  async function reautenticar() { await fb.a.reauthenticateWithPopup(user, new fb.a.GoogleAuthProvider()); }
+  async function excluirConta() {
+    if (!user) return false;
+    const uid = user.uid;
+    if (unsub) unsub(); unsub = null; clearTimeout(timer);
+    await apagarNuvem(uid);
+    try { await user.delete(); }
+    catch (e) {
+      if (e.code !== 'auth/requires-recent-login') throw e;
+      await fb.a.reauthenticateWithPopup(user, new fb.a.GoogleAuthProvider());
+      await user.delete();
+    }
+    user = null; limparLocal(uid); status('off');
+    return true;
+  }
+
   window.addEventListener('online', () => { if (user) enviar(); });
   window.Sync = {
     estado,
     configurar(o) { cb = Object.assign(cb, o); },
-    iniciar, preparar, entrar, agendar, enviar,
+    iniciar, preparar, entrar, agendar, enviar, sair, excluirConta, apagarTudo, precisaReautenticar, reautenticar,
     _interno: { lerBase, gravarBase, get user() { return user; }, get fb() { return fb; }, get auth() { return auth; }, get db() { return db; } },
   };
 })();

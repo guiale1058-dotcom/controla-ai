@@ -818,7 +818,7 @@ body::before{
       </div>
       <button class="export-btn" onclick="exportarDados()">📤 Exportar dados (backup JSON)</button>
       <button class="export-btn" onclick="exportarCSV()">📊 Exportar lançamentos (CSV)</button>
-      <button class="bdanger" onclick="resetApp()">Apagar todos os dados</button>
+      <button class="bdanger" id="btn-reset" onclick="resetApp()">Apagar todos os dados</button>
     </div>
   </div>
 
@@ -2728,6 +2728,8 @@ function fmtHaQuanto(ms){
 function renderSyncRow(){
   const el=document.getElementById('cfg-sync');if(!el)return;
   const e=(window.Sync&&Sync.estado)||{logado:false};
+  const br=document.getElementById('btn-reset');
+  if(br)br.textContent=e.logado?'Apagar todos os dados (em todos os aparelhos)':'Apagar todos os dados';
   if(!e.logado){
     el.innerHTML=`<div style="font-size:13px;color:var(--text2);margin-bottom:10px">☁️ Use seus dados em outros aparelhos. Entre com a sua conta Google e tudo fica igual no celular e no computador.</div>
       <button class="bpri" onclick="entrarSync()">Entrar com Google</button>
@@ -2784,9 +2786,28 @@ async function entrarSync(){
   }catch(e){console.error(e);showToast('Não foi possível entrar. Tente de novo.');}
   renderSyncRow();refreshAll();
 }
-// Definidas de verdade na Task 7; aqui só para os botões não quebrarem.
-function sairSync(){showToast('Em breve');}
-function excluirContaSync(){showToast('Em breve');}
+// Guarda as preferências por aparelho e apaga só os dados do app.
+function limparDadosDoAparelho(){
+  const manter=['controla_lock',NV_KEY,'hc_open','ra_open'];
+  const salvo={};manter.forEach(k=>{const v=localStorage.getItem(k);if(v!==null)salvo[k]=v;});
+  localStorage.clear();
+  Object.keys(salvo).forEach(k=>localStorage.setItem(k,salvo[k]));
+}
+async function sairSync(){
+  if(!confirm('Seus dados continuam salvos na conta. Este aparelho vai ficar vazio. Sair?'))return;
+  try{await Sync.sair();}catch(e){console.error(e);}
+  limparDadosDoAparelho();location.reload();
+}
+async function excluirContaSync(){
+  if(!confirm('Excluir sua conta apaga TODOS os seus dados da nuvem e de todos os aparelhos. Continuar?'))return;
+  try{if(Sync.precisaReautenticar())await Sync.reautenticar();}
+  catch(e){console.error(e);showToast('Confirme sua conta Google para excluir.');return;}
+  if(!confirm('Tem certeza? Isso não pode ser desfeito.'))return;
+  try{
+    await Sync.excluirConta();
+    limparDadosDoAparelho();location.reload();
+  }catch(e){console.error(e);showToast('Não foi possível excluir agora. Tente de novo.');}
+}
 function openHistoricoNovidades(){
   document.getElementById('nv-lista').innerHTML=NOVIDADES.map(n=>
     `<div class="nv-ver">Versão ${n.v}${n.v===APP_VERSION?' <b>· atual</b>':''}</div>`+
@@ -2991,7 +3012,16 @@ function saveSaldo(){
   localStorage.setItem(SALDO_CONFIRM_KEY,'1'); // confirmou o saldo real (fix: marca só ao salvar)
   saveState();closeOv('ov-saldo');updateHome();renderConfig();
 }
-function resetApp(){
+async function resetApp(){
+  const logado=window.Sync&&Sync.estado.logado;
+  if(logado){
+    if(!confirm('Apagar TODOS os dados em TODOS os aparelhos? Esta ação não pode ser desfeita.'))return;
+    if(!confirm('Tem certeza? Some do celular, do computador e da nuvem.'))return;
+    try{await Sync.apagarTudo();}catch(e){console.error(e);showToast('Sem conexão: tente de novo com internet.');return;}
+    S.tx=[];S.renda=[];S.parcs=[];S.bancos=[];S.cartoes=[];
+    try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+    location.reload();return;
+  }
   if(!confirm('Apagar TODOS os dados? Esta ação não pode ser desfeita.'))return;
   localStorage.clear();location.reload();
 }
