@@ -1122,6 +1122,7 @@ body::before{
 <script src="balance-core.js"></script>
 <script src="fatura-core.js"></script>
 <script src="ordem-core.js"></script>
+<script src="ids-core.js"></script>
 <script>
 const MN=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const CATS=[
@@ -1220,6 +1221,8 @@ function loadState(){
 function saveState(){
   try{localStorage.setItem(KEY,JSON.stringify(S));showToast();}catch(e){}
 }
+// Próximo id: por relógio (não repete entre aparelhos). S.nid guarda o ÚLTIMO emitido.
+function proxId(){S.nid=IdsCore.novoId(S.nid);return S.nid;}
 function isFirstTime(){return!localStorage.getItem(KEY+'_done')&&!localStorage.getItem('financeiro_v2_done')}
 function markDone(){localStorage.setItem(KEY+'_done','1')}
 // ── TRAVA DE ACESSO ───────────────────────────────
@@ -2642,7 +2645,7 @@ function salvarPagamentoFatura(){
   const c=S.cartoes.find(x=>x.id===_pfCartaoId);
   if(!c)return;
   const b=S.bancos.find(x=>x.id===c.bancoId);
-  S.tx.push({id:S.nid++,type:'pagamento_fatura',cartaoId:_pfCartaoId,val,date,fatY:_pfFat?_pfFat.y:undefined,fatM:_pfFat?_pfFat.m:undefined,desc:'Pagamento Fatura '+(b?b.nome+' ':'')+c.nome});
+  S.tx.push({id:proxId(),type:'pagamento_fatura',cartaoId:_pfCartaoId,val,date,fatY:_pfFat?_pfFat.y:undefined,fatM:_pfFat?_pfFat.m:undefined,desc:'Pagamento Fatura '+(b?b.nome+' ':'')+c.nome});
   saveState();
   closeOv('ov-pagar-fatura');
   refreshAll();
@@ -2724,7 +2727,7 @@ function saveTx(){
     if(!v.ok){showToast(v.erros.nparc||v.erros.pagas||v.erros.total||'Dados do parcelamento inválidos.');return;}
     const tipo=document.getElementById('f-parc-tipo').value;
     const inicio=date.slice(0,7);
-    S.parcs.push({id:S.nid++,desc,tipo,total:val,nparc,pagas,inicio,cat});
+    S.parcs.push({id:proxId(),desc,tipo,total:val,nparc,pagas,inicio,cat});
     saveState();closeOv('ov-tx');
     const d=new Date(date+'T12:00');curY=d.getFullYear();curM=d.getMonth();updLbl();updateHome();
     const pg=document.querySelector('.pg.active');if(pg&&pg.id==='pg-parc')renderParcs();if(pg&&pg.id==='pg-tx')renderTxPage();
@@ -2737,14 +2740,14 @@ function saveTx(){
   const parcelas=cartaoId?parseInt(document.getElementById('f-parcelas').value)||1:1;
   if(parcelas>72){showToast('Máximo de 72 parcelas no cartão.');return;}
   if(parcelas>1){
-    const gid=S.nid++;
+    const gid=proxId();
     const datas=ParcelsCore.datasParcelas(date,parcelas);
     const valores=ParcelsCore.valoresParcelas(val,parcelas);
     for(let i=0;i<parcelas;i++){
-      S.tx.push({id:S.nid++,type:S.txType,desc:`${desc} (${i+1}/${parcelas})`,val:valores[i],cat,date:datas[i],cartaoId,parcelaGrupoId:gid,parcelaTot:parcelas,parcelaNum:i+1});
+      S.tx.push({id:proxId(),type:S.txType,desc:`${desc} (${i+1}/${parcelas})`,val:valores[i],cat,date:datas[i],cartaoId,parcelaGrupoId:gid,parcelaTot:parcelas,parcelaNum:i+1});
     }
   }else{
-    S.tx.push({id:S.nid++,type:S.txType,desc,val,cat,date,cartaoId});
+    S.tx.push({id:proxId(),type:S.txType,desc,val,cat,date,cartaoId});
   }
   saveState();closeOv('ov-tx');
   document.getElementById('f-parcelas').value='1';
@@ -2760,7 +2763,7 @@ function saveRenda(){
   const km=parseFloat(document.getElementById('r-km').value)||0;
   const obs=document.getElementById('r-obs').value.trim();
   const tipo=document.getElementById('r-tipo').value;
-  S.renda.push({id:S.nid++,date,val,custo,horas,km,obs,tipo});
+  S.renda.push({id:proxId(),date,val,custo,horas,km,obs,tipo});
   saveState();closeOv('ov-renda');
   const d=new Date(date+'T12:00');curY=d.getFullYear();curM=d.getMonth();updLbl();
   refreshAll();
@@ -2788,7 +2791,7 @@ function saveBanco(){
   let nome=bancoSelecionado.nome;
   if(nome==='Outro'){nome=document.getElementById('b-nome-custom').value.trim();if(!nome){showToast('Digite o nome do banco.');return;}}
   const cor=bancoSelecionado.cor;
-  S.bancos.push({id:S.nid++,nome,cor});
+  S.bancos.push({id:proxId(),nome,cor});
   saveState();closeOv('ov-banco');renderCartoes();
 }
 function openEditBanco(id){
@@ -2822,7 +2825,7 @@ function saveCartao(){
   const venc=parseInt(document.getElementById('c-venc').value)||10;
   const fecha=parseInt(document.getElementById('c-fecha').value)||3;
   if(!nome||!bancoId)return;
-  S.cartoes.push({id:S.nid++,bancoId,nome,bandeira,limite,venc,fecha});
+  S.cartoes.push({id:proxId(),bancoId,nome,bandeira,limite,venc,fecha});
   saveState();closeOv('ov-cartao');renderCartoes();
 }
 function openEditCartao(id){
@@ -2872,7 +2875,7 @@ function openSaldoModal(){
 }
 function saveSaldo(){
   const v=getMoneyVal('sd-val');
-  S.perfil.saldoConta={valor:v,data:hojeStr(),id:S.nid}; // id = ponto de corte por ordem de lançamento
+  S.perfil.saldoConta={valor:v,data:hojeStr(),id:proxId()}; // id = ponto de corte por ordem de lançamento
   S.perfil.saldoInicial=v; // espelho legado (sparkline)
   localStorage.setItem(SALDO_CONFIRM_KEY,'1'); // confirmou o saldo real (fix: marca só ao salvar)
   saveState();closeOv('ov-saldo');updateHome();renderConfig();
@@ -2894,7 +2897,7 @@ function goStep(n){
     S.perfil.salario=getMoneyVal('onb-salario');
     S.perfil.beneficio=getMoneyVal('onb-beneficio');
     const _sco=getMoneyVal('onb-saldo');
-    S.perfil.saldoConta={valor:_sco,data:hojeStr(),id:S.nid};
+    S.perfil.saldoConta={valor:_sco,data:hojeStr(),id:proxId()};
     S.perfil.saldoInicial=_sco;
     if(nome)document.getElementById('onb-ready-text').textContent='Olá, '+nome.split(' ')[0]+'! Agora cadastre seus bancos e cartões, registre seus gastos e acompanhe tudo em tempo real.';
     launchConfetti();
@@ -2947,7 +2950,7 @@ function finishOnboarding(){
   S.perfil.salario=getMoneyVal('onb-salario');
   S.perfil.beneficio=getMoneyVal('onb-beneficio');
   const _sco=getMoneyVal('onb-saldo');
-  S.perfil.saldoConta={valor:_sco,data:hojeStr(),id:S.nid};
+  S.perfil.saldoConta={valor:_sco,data:hojeStr(),id:proxId()};
   S.perfil.saldoInicial=_sco;
   localStorage.setItem(SALDO_CONFIRM_KEY,'1'); // usuário novo já definiu o saldo no onboarding
   saveState();markDone();
