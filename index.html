@@ -323,6 +323,17 @@ body::before{
 
 /* ── ALERTAS ────────────────────────────────── */
 .alert{border-radius:var(--rs);padding:12px 14px;margin-bottom:10px;font-size:13px;display:flex;align-items:flex-start;gap:10px;font-weight:500}
+/* Primeiros passos (só para quem acabou de chegar) */
+.passos{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px 14px 6px}
+.passos-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.passos-t{font-size:14px;font-weight:700;color:var(--text)}
+.passos-x{font-size:12px;color:var(--text3);cursor:pointer;padding:4px 0 4px 12px}
+.passos-sub{font-size:12px;color:var(--text3);margin-bottom:8px}
+.passo{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--border);cursor:pointer;font-size:14px;color:var(--text)}
+.passo-ck{width:22px;height:22px;border-radius:50%;border:2px solid var(--text3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#0f0f0f}
+.passo.feito{color:var(--text3);text-decoration:line-through;cursor:default}
+.passo.feito .passo-ck{background:var(--green);border-color:var(--green)}
+.passo-arr{margin-left:auto;color:var(--text3)}
 .alert-amber{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);color:#fbbf24}
 .alert-green{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.25);color:#4ade80}
 .alert-red{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);color:#f87171}
@@ -713,6 +724,7 @@ body::before{
       </div>
       <div id="resultado-mes" style="margin-top:10px;font-size:13px;color:var(--text3);text-align:right"></div>
     </div>
+    <div id="home-passos" class="sec"></div>
     <div id="saldo-disp-wrap" class="sec"></div>
     <div id="home-chart" class="sec"></div>
     <div class="sec">
@@ -1343,6 +1355,7 @@ const NOVIDADES=[
   {v:28,itens:[
     'Na aba Cartões, "Adicionar banco" virou um botão de verdade e fica sempre no topo da lista',
     'No computador, a tecla Esc fecha a janela aberta e volta para o Início',
+    'Quem está começando agora ganha uma lista de "Primeiros passos" na tela inicial',
   ]},
   {v:27,itens:[
     'Dois cartões com o mesmo limite? Edite o banco e marque "Os cartões deste banco dividem o mesmo limite"',
@@ -1658,8 +1671,52 @@ function renderHomeChart(){
   if(chev&&!open)chev.style.transform='rotate(-90deg)';
 }
 
+// ── PRIMEIROS PASSOS ───────────────────────────────
+// Lista de 4 tarefas na Início para quem ACABOU de se cadastrar neste aparelho
+// (finishOnboarding liga). Quem já usava o app nunca vê. Cada item se marca sozinho
+// quando a pessoa faz; some ao completar os 4 ou ao tocar em "Dispensar".
+const PASSOS_KEY='controla_passos';
+function passosEstado(){try{return JSON.parse(localStorage.getItem(PASSOS_KEY))||null}catch(e){return null}}
+function passosGravar(e){localStorage.setItem(PASSOS_KEY,JSON.stringify(e));}
+function passosLista(e){
+  return[
+    {id:'banco',txt:'Cadastre seu primeiro banco',feito:S.bancos.length>0},
+    {id:'cartao',txt:'Cadastre um cartão',feito:S.cartoes.length>0},
+    {id:'despesa',txt:'Lance uma despesa',feito:S.tx.some(t=>t.type==='expense')||S.parcs.length>0},
+    {id:'saldo',txt:'Confira seu saldo em conta',feito:!!e.saldo||((S.perfil.saldoConta||{}).valor||0)!==0},
+  ];
+}
+function renderPassos(){
+  const el=document.getElementById('home-passos');if(!el)return;
+  const e=passosEstado();
+  if(!e||!e.ativo){el.innerHTML='';return;}
+  const lista=passosLista(e);
+  const feitos=lista.filter(p=>p.feito).length;
+  if(feitos===lista.length){ // terminou: avisa uma vez e some para sempre
+    passosGravar({ativo:false});el.innerHTML='';
+    showToast('🎉 Primeiros passos concluídos!');return;
+  }
+  el.innerHTML=`<div class="passos">
+    <div class="passos-top"><span class="passos-t">🚀 Primeiros passos</span><span class="passos-x" onclick="passosDispensar()">Dispensar</span></div>
+    <div class="passos-sub">${feitos} de ${lista.length} feitos — toque em um item para fazer agora</div>
+    ${lista.map(p=>`<div class="passo${p.feito?' feito':''}"${p.feito?'':` onclick="passoIr('${p.id}')"`}><span class="passo-ck">${p.feito?'✓':''}</span><span>${p.txt}</span>${p.feito?'':'<span class="passo-arr">›</span>'}</div>`).join('')}
+  </div>`;
+}
+function passosDispensar(){passosGravar({ativo:false});renderPassos();}
+function passoIr(id){
+  if(id==='banco'){navTo('cartoes');openBancoModal();}
+  else if(id==='cartao'){
+    navTo('cartoes');
+    if(!S.bancos.length){showToast('Cadastre um banco primeiro.');openBancoModal();}
+    else openCartaoModal(S.bancos[0].id);
+  }
+  else if(id==='despesa')openTxModal('expense');
+  else if(id==='saldo')openSaldoModal();
+}
+
 // ── RENDER HOME ────────────────────────────────────
 function updateHome(){
+  renderPassos();
   const txs=getMonthTx();
   const rendasM=getMonthRenda();
   const rec=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.val,0);
@@ -2461,6 +2518,7 @@ function goPg(p,btn){
   document.querySelectorAll('.nb').forEach(e=>e.classList.remove('active'));
   document.getElementById('pg-'+p).classList.add('active');
   btn.classList.add('active');
+  if(p==='home')renderPassos();
   if(p==='cartoes')renderCartoes();
   if(p==='renda')renderRenda();
   if(p==='parc')renderParcs();
@@ -3079,6 +3137,7 @@ function saveSaldo(){
   S.perfil.saldoConta={valor:v,data:hojeStr(),id:proxId()}; // id = ponto de corte por ordem de lançamento
   S.perfil.saldoInicial=v; // espelho legado (sparkline)
   localStorage.setItem(SALDO_CONFIRM_KEY,'1'); // confirmou o saldo real (fix: marca só ao salvar)
+  {const pe=passosEstado();if(pe&&pe.ativo){pe.saldo=true;passosGravar(pe);}}
   saveState();closeOv('ov-saldo');updateHome();renderConfig();
 }
 async function resetApp(){
@@ -3163,6 +3222,7 @@ function finishOnboarding(){
   S.perfil.saldoConta={valor:_sco,data:hojeStr(),id:proxId()};
   S.perfil.saldoInicial=_sco;
   localStorage.setItem(SALDO_CONFIRM_KEY,'1'); // usuário novo já definiu o saldo no onboarding
+  passosGravar({ativo:true}); // lista de "Primeiros passos" na Início
   saveState();markDone();
   document.getElementById('onboarding').style.display='none';
   document.getElementById('main-app').style.display='block';
