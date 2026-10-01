@@ -57,3 +57,26 @@ test('diasAte: diferença em dias entre datas', () => {
   assert.strictEqual(FC.diasAte('2026-10-03', '2026-10-03'), 0);
   assert.strictEqual(FC.diasAte('2026-10-05', '2026-10-03'), -2);
 });
+
+test('mesVencimento: mês em que a compra é PAGA (vencimento da fatura dela)', () => {
+  // fecha 26, vence 3: compra de 20/set entra na fatura de set, que vence em out
+  assert.deepStrictEqual(FC.mesVencimento('2026-09-20', nub), { y: 2026, m: 9 });
+  // depois do fechamento vai pra fatura de out, que vence em nov
+  assert.deepStrictEqual(FC.mesVencimento('2026-09-27', nub), { y: 2026, m: 10 });
+  // fecha 3, vence 10: fatura vence no mesmo mês do fechamento
+  assert.deepStrictEqual(FC.mesVencimento('2026-10-01', bb), { y: 2026, m: 9 });
+  assert.deepStrictEqual(FC.mesVencimento('2026-10-04', bb), { y: 2026, m: 10 });
+  // virada de ano
+  assert.deepStrictEqual(FC.mesVencimento('2026-12-10', nub), { y: 2027, m: 0 });
+});
+
+test('faturaQueVenceEm: qual fatura vence em um dado mês', () => {
+  // fecha 26, vence 3: em outubro vence a fatura de setembro
+  assert.deepStrictEqual(FC.faturaQueVenceEm(2026, 9, nub), { y: 2026, m: 8 });
+  assert.deepStrictEqual(FC.faturaQueVenceEm(2027, 0, nub), { y: 2026, m: 11 });
+  // fecha 3, vence 10: em outubro vence a própria fatura de outubro
+  assert.deepStrictEqual(FC.faturaQueVenceEm(2026, 9, bb), { y: 2026, m: 9 });
+  // é o inverso de vencimento()
+  const f = FC.faturaQueVenceEm(2026, 9, nub);
+  assert.strictEqual(FC.vencimento(f.y, f.m, nub), '2026-10-03');
+});

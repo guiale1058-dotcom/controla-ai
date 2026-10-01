@@ -31,6 +31,16 @@
     const ultimo = new Date(alvo.y, alvo.m + 1, 0).getDate();
     return iso(alvo.y, alvo.m, Math.min(venc, ultimo));
   }
+  // Mês em que uma compra é PAGA: o do vencimento da fatura em que ela caiu.
+  function mesVencimento(dataISO, c) {
+    const f = mesFatura(dataISO, c.fecha || 1);
+    const v = vencimento(f.y, f.m, c).split('-').map(Number);
+    return { y: v[0], m: v[1] - 1 };
+  }
+  // Fatura que vence no mês (y,m) — o inverso de vencimento().
+  function faturaQueVenceEm(y, m, c) {
+    return (c.venc || 10) > (c.fecha || 1) ? { y: y, m: m } : soma(y, m, -1);
+  }
   // Fatura que um pagamento quita: a gravada nele; se for antigo (sem fatura gravada),
   // a última fatura fechada na data do pagamento.
   function mesDoPagamento(t, fecha) {
@@ -47,5 +57,5 @@
     const a = deISO.split('-').map(Number), b = ateISO.split('-').map(Number);
     return Math.round((Date.UTC(b[0], b[1] - 1, b[2]) - Date.UTC(a[0], a[1] - 1, a[2])) / 86400000);
   }
-  return { mesFatura, faturaFechada, vencimento, mesDoPagamento, faturaAPagar, diasAte };
+  return { mesFatura, faturaFechada, vencimento, mesVencimento, faturaQueVenceEm, mesDoPagamento, faturaAPagar, diasAte };
 });

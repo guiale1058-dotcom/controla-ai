@@ -625,6 +625,7 @@ body::before{
       <div class="onb-dots"><div class="dot"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div></div>
       <button class="onb-next" onclick="goStep(3)">Próximo →</button>
       <button class="onb-skip" onclick="goStep(3)">Pular por agora</button>
+      <button class="onb-skip" onclick="goStep(1)">← Voltar</button>
     </div>
   </div>
   <div class="onb-step" id="step-3">
@@ -647,6 +648,7 @@ body::before{
       <div class="onb-dots"><div class="dot"></div><div class="dot"></div><div class="dot active"></div><div class="dot"></div></div>
       <button class="onb-next" onclick="goStep(4)">Próximo →</button>
       <button class="onb-skip" onclick="goStep(4)">Pular por agora</button>
+      <button class="onb-skip" onclick="goStep(2)">← Voltar</button>
     </div>
   </div>
   <div class="onb-step" id="step-4">
@@ -661,10 +663,12 @@ body::before{
     </div>
     <div class="onb-body">
       <div class="onb-info"><p><strong>Primeiros passos:</strong><br><br>1. Cadastre seus bancos e cartões<br>2. Lance suas despesas fixas<br>3. Adicione parcelamentos ativos<br>4. Registre sua renda extra</p></div>
+      <div class="onb-info"><p>☁️ <strong>Quer usar no celular e no computador?</strong><br>Dentro do app, toque na sua foto (no topo da tela) e escolha "Entrar com Google". Dá para fazer isso a qualquer momento.</p></div>
     </div>
     <div class="onb-footer">
       <div class="onb-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot active"></div></div>
       <button class="onb-next" style="background:var(--green);color:#0f0f0f" onclick="finishOnboarding()">Entrar no app ✓</button>
+      <button class="onb-skip" onclick="goStep(3)">← Voltar</button>
     </div>
   </div>
 </div>
@@ -1036,7 +1040,7 @@ body::before{
     <div class="fg"><label>Banco</label><select id="c-banco"></select></div>
     <div class="fg"><label>Nome do cartão</label><input id="c-nome" placeholder="Ex: Euro Card, Smiley, Gold…"/></div>
     <div class="fg"><label>Bandeira</label>
-      <select id="c-band"><option>Visa</option><option>Mastercard</option><option>Elo</option><option>Amex</option><option>Hipercard</option></select>
+      <select id="c-band"><option>Visa</option><option>Mastercard</option><option>Elo</option><option>Amex</option><option>Hipercard</option><option>Cartão de loja</option></select>
     </div>
     <div class="row2">
       <div class="fg"><label>Limite (R$)</label><div class="money-input-wrap"><input id="c-limite" type="text" inputmode="numeric" placeholder="5000"/></div></div>
@@ -1124,6 +1128,9 @@ body::before{
     <h2>Editar banco</h2>
     <div class="fg"><label>Nome</label><input id="eb-nome" placeholder="Nome do banco"/></div>
     <div class="fg"><label>Cor</label><input type="color" id="eb-cor" style="width:100%;height:44px;border:none;border-radius:var(--rs);cursor:pointer;background:none"/></div>
+    <label style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text);margin-bottom:13px;cursor:pointer"><input type="checkbox" id="eb-comp" onchange="toggleLimiteComp()" style="width:18px;height:18px;flex-shrink:0"/> Os cartões deste banco dividem o mesmo limite</label>
+    <div class="fg" id="eb-comp-wrap" style="display:none"><label>Limite do banco (R$)</label><div class="money-input-wrap"><input id="eb-limite" type="text" inputmode="numeric" placeholder="0,00"/></div>
+      <div style="font-size:12px;color:var(--text3);margin-top:5px">Um limite só para todos os cartões deste banco. O limite de cada cartão deixa de valer.</div></div>
     <button class="bpri" onclick="saveEditBanco()">Salvar alterações</button>
     <button class="bdanger" onclick="deleteEditBanco()">Excluir banco</button>
     <button class="bcan" onclick="closeOv('ov-edit-banco')">Cancelar</button>
@@ -1135,7 +1142,7 @@ body::before{
     <h2>Editar cartão</h2>
     <div class="fg"><label>Nome do cartão</label><input id="ec-nome" placeholder="Ex: Euro Card, Gold…"/></div>
     <div class="fg"><label>Bandeira</label>
-      <select id="ec-band"><option>Visa</option><option>Mastercard</option><option>Elo</option><option>Amex</option><option>Hipercard</option></select>
+      <select id="ec-band"><option>Visa</option><option>Mastercard</option><option>Elo</option><option>Amex</option><option>Hipercard</option><option>Cartão de loja</option></select>
     </div>
     <div class="fg"><label>Limite (R$)</label><div class="money-input-wrap"><input id="ec-limite" type="text" inputmode="numeric" placeholder="0,00"/></div></div>
     <div class="row2">
@@ -1152,6 +1159,7 @@ body::before{
 <script src="parcels-core.js"></script>
 <script src="balance-core.js"></script>
 <script src="fatura-core.js"></script>
+<script src="limite-core.js"></script>
 <script src="ordem-core.js"></script>
 <script src="ids-core.js"></script>
 <script src="sync-core.js"></script>
@@ -1189,8 +1197,11 @@ const BANCOS_PRESET=[
   {nome:'Outro',cor:'#64748b',inicial:'?'},
 ];
 
+const BANCOS_COM_LOGO=['Nubank','Bradesco','Banco do Brasil','Santander','Itau','Caixa','Inter','C6 Bank','PicPay','Neon','Sicoob','Mercado Pago','BTG Pactual','Will Bank'];
 function getBancoLogo(nome,cor){
-  switch(nome){
+  // "Nubank PJ", "Inter Empresas"… usam o logo do banco cujo nome vem no começo
+  const base=BANCOS_COM_LOGO.find(k=>nome===k||nome.indexOf(k+' ')===0)||nome;
+  switch(base){
     case "Nubank":return "<div style=\"width:40px;height:40px;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#8B5CF6\"><svg width=\"40\" height=\"40\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:cc=\"http://creativecommons.org/ns#\" xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" xmlns:svg=\"http://www.w3.org/2000/svg\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:sodipodi=\"http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd\" xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" viewBox=\"0 0 263.84207 145.56737\" version=\"1.1\" id=\"svg6\" sodipodi:docname=\"Nubank logo 2021.svg\" width=\"263.84207\" height=\"145.56737\" inkscape:export-filename=\"C:\\Users\\alex\\sites\\nubank-logo-0.png\" inkscape:export-xdpi=\"561.73712\" inkscape:export-ydpi=\"561.73712\" inkscape:version=\"1.0.2 (e86c870879, 2021-01-15, custom)\"> <metadata id=\"metadata12\"> <rdf:RDF> <cc:Work rdf:about=\"\"> <dc:format>image/svg+xml</dc:format> <dc:type rdf:resource=\"http://purl.org/dc/dcmitype/StillImage\" /> <dc:title></dc:title> </cc:Work> </rdf:RDF> </metadata> <defs id=\"defs10\" /> <sodipodi:namedview pagecolor=\"#ffffff\" bordercolor=\"#666666\" borderopacity=\"1\" objecttolerance=\"10\" gridtolerance=\"10\" guidetolerance=\"10\" inkscape:pageopacity=\"0\" inkscape:pageshadow=\"2\" inkscape:window-width=\"1366\" inkscape:window-height=\"705\" id=\"namedview8\" showgrid=\"false\" inkscape:zoom=\"0.21459759\" inkscape:cx=\"208.8936\" inkscape:cy=\"128.51315\" inkscape:window-x=\"-8\" inkscape:window-y=\"-8\" inkscape:window-maximized=\"1\" inkscape:current-layer=\"svg6\" inkscape:document-rotation=\"0\" fit-margin-top=\"0\" fit-margin-left=\"0\" fit-margin-right=\"0\" fit-margin-bottom=\"0\" /> <path d=\"M 47.627598,13.88565 C 55.970918,5.12022 67.038188,0 80.040158,0 c 25.329302,0 42.122862,18.49361 45.335812,46.19831 1.04173,8.99702 1.03217,21.68146 1.02172,36.37338 -0.002,1.50662 -0.002,3.03464 -0.002,4.58175 v 55.03839 H 91.563068 v -40.70812 c 0,0 -0.071,-34.84036 -0.28386,-41.3518 -0.93482,-28.35945 -17.72383,-46.17911 -43.65497,-46.19826 -7.8236,8.26577 -12.01559,18.3721 -12.63381,33.82498 -0.085,2.15531 -0.0636,9.79491 -0.0354,19.86367 0.0146,5.2168 0.031,11.08592 0.0354,17.18204 0.0258,26.53388 0,57.39341 0,57.39341 H 0.15770145 V 79.54842 c 0,-2.14668 -0.03915,-4.31155 -0.07839,-6.48506 -0.0789999971,-4.37205 -0.158626,-8.77775 0.07839,-13.14025 C 0.55125245,52.65062 1.8093225,45.5014 5.2028685,38.85995 12.970658,23.64481 28.886888,13.84835 45.854848,13.84835 c 0.59274,0 1.18593,0.0137 1.77275,0.0364 z\" class=\"Path-xrtkpd-0 eqfYiR\" id=\"path2\" inkscape:connector-curvature=\"0\" style=\"fill:#820ad1;fill-opacity:1;stroke-width:4.549\" inkscape:export-filename=\"C:\\Users\\alex\\sites\\nubank-logo-5.png\" inkscape:export-xdpi=\"132.76538\" inkscape:export-ydpi=\"132.76538\" /> <path d=\"m 263.68433,85.64499 c 0.237,-4.36249 0.15739,-8.76866 0.0787,-13.14025 -0.0396,-2.17351 -0.0787,-4.33838 -0.0787,-6.48505 V 3.37022 h -34.83218 c 0,0 -0.026,30.85953 0,57.39309 0.004,6.09612 0.0205,11.96479 0.035,17.18159 0.0282,10.06921 0.0496,17.70881 -0.035,19.86413 -0.61821,15.45342 -4.81056,25.55948 -12.63394,33.82548 -25.93069,-0.0182 -42.71923,-17.83938 -43.65451,-46.19832 -0.2129,-6.51144 -0.30297,-22.66995 -0.30297,-41.38451 V 3.34361 l -34.80669,0.0318 v 55.03852 c 0,1.54712 -0.002,3.07468 -0.002,4.58176 -0.011,14.69191 -0.02,27.3759 1.0217,36.37338 3.20615,27.70479 19.9997,46.1983 45.329,46.1983 13.00242,0 24.06969,-5.12035 32.41301,-13.88582 0.58637,0.0227 1.17911,0.0364 1.77184,0.0364 16.96778,0 32.88429,-9.79628 40.65217,-25.01133 3.39355,-6.642 4.65135,-13.79076 5.04484,-21.06325 z\" class=\"Path-xrtkpd-0 eqfYiR\" id=\"path4\" inkscape:connector-curvature=\"0\" style=\"fill:#820ad1;fill-opacity:1;stroke-width:4.549\" inkscape:export-filename=\"C:\\Users\\alex\\sites\\nubank-logo-5.png\" inkscape:export-xdpi=\"132.76538\" inkscape:export-ydpi=\"132.76538\" /> <path d=\"m 118.58731,794.60093 c 14.15846,-14.94464 32.93942,-23.67435 55.00378,-23.67435 42.98331,0 71.48165,31.53065 76.93401,78.76565 1.76777,15.3395 1.7516,36.9658 1.73389,62.0147 0,2.5688 0,5.1739 0,7.8117 v 93.83747 h -59.11044 v -69.40517 c 0,0 -0.12055,-59.4009 -0.48186,-70.5026 -1.58618,-48.3514 -30.07678,-78.733 -74.08169,-78.7656 -13.27642,14.0927 -20.390372,31.3234 -21.439402,57.6698 -0.14412,3.6747 -0.10791,16.6998 -0.0606,33.8665 0.0248,8.8944 0.0533,18.9009 0.0606,29.2945 0.045,45.2389 0,97.85267 0,97.85267 H 38.035068 V 906.55243 c 0,-3.6599 -0.067,-7.3509 -0.133,-11.0567 -0.13393,-7.4541 -0.26903,-14.9656 0.133,-22.4034 0.66803,-12.3992 2.80293,-24.5883 8.5618,-35.9115 13.18163,-25.9411 40.19134,-42.6435 68.985722,-42.6435 1.00577,0 2.01244,0.023 3.00821,0.062 z\" class=\"Path-xrtkpd-0 eqfYiR\" id=\"path2-6\" inkscape:connector-curvature=\"0\" style=\"fill:#ffffff;stroke-width:7.73768\" inkscape:export-filename=\"C:\\Users\\alex\\sites\\nubank-logo-4.png\" inkscape:export-xdpi=\"92.618095\" inkscape:export-ydpi=\"92.618095\" /> <path d=\"m 485.23217,916.94683 c 0.40221,-7.4379 0.26714,-14.9501 0.1336,-22.4035 -0.0672,-3.7057 -0.1336,-7.3967 -0.1336,-11.0567 v -106.814 h -59.10962 c 0,0 -0.0443,52.6139 0,97.8522 0.01,10.3936 0.0346,20.3993 0.0593,29.2937 0.0478,17.1675 0.0841,30.1926 -0.0593,33.8673 -1.04911,26.3473 -8.16343,43.5776 -21.43959,57.6707 -44.00398,-0.031 -72.49385,-30.4153 -74.08105,-78.7657 -0.36125,-11.1017 -0.51418,-38.6511 -0.51418,-70.5584 v -69.40516 l -59.06635,0.0541 v 93.83786 c 0,2.6377 0,5.2421 0,7.8116 -0.0192,25.049 -0.033,46.6745 1.73387,62.0147 5.44071,47.2352 33.93905,78.76567 76.92255,78.76567 22.06501,0 40.84587,-8.7299 55.00436,-23.67457 0.99508,0.039 2.00094,0.062 3.00679,0.062 28.79408,0 55.80412,-16.7021 68.98605,-42.643 5.75889,-11.3243 7.89328,-23.5125 8.56105,-35.9117 z\" class=\"Path-xrtkpd-0 eqfYiR\" id=\"path4-5\" inkscape:connector-curvature=\"0\" style=\"fill:#ffffff;stroke-width:7.73768\" inkscape:export-filename=\"C:\\Users\\alex\\sites\\nubank-logo-4.png\" inkscape:export-xdpi=\"92.618095\" inkscape:export-ydpi=\"92.618095\" /> </svg></div>";
     case "Bradesco":return "<div style=\"width:40px;height:40px;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#CC0000\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"123\" height=\"23.1\" viewBox=\"0 0 123 23.1\"> <title>logosAtivo 23</title> <path d=\"M34.6,9.8a6.2,6.2,0,0,0-2.6.6V4.1a11.8,11.8,0,0,0-2.9,1.6A1.6,1.6,0,0,0,28.5,7V22.4a13.9,13.9,0,0,0,4.6.7c4.6,0,7.2-2.8,7.2-6.8S38.5,9.8,34.6,9.8ZM33.3,20.3a3.2,3.2,0,0,1-1.3-.2v-7a5.4,5.4,0,0,1,2-.4c1.8,0,2.7,1.2,2.7,3.5S35.6,20.3,33.3,20.3ZM11.6,16.4l-1.4.8c-.2.1-.2.2-.2.4v5.1c0,.2.1.3.2.3h1.4V16.4ZM49.2,9.9a4.2,4.2,0,0,0-3.5,1.8,12.4,12.4,0,0,0-.4-1.6l-1.4-.2-1.4.2V22.8a4.4,4.4,0,0,0,1.7.2l1.8-.2V16.6c0-2.5,1.3-3.8,3-3.8h1.2a8.8,8.8,0,0,0,0-2.8Zm-35,5-1.8,1h-.1v6.9h2a.4.4,0,0,0,.4-.4V15.2A.3.3,0,0,0,14.2,14.9Zm-2.8-10A22.5,22.5,0,0,0,7,5.3a8.2,8.2,0,0,1,6.6-3.2A9,9,0,0,1,19,3.9c.2.2.4.3.6.1a.4.4,0,0,0,0-.6A9.3,9.3,0,0,0,12.2,0,9.5,9.5,0,0,0,3.5,6.1L.3,7.4q-.4.3-.3.6a.4.4,0,0,0,.6.2,18.3,18.3,0,0,1,2.5-.6A6.1,6.1,0,0,0,3,9a9.3,9.3,0,0,0,4.3,8c.2.1.5.1.6-.1s.1-.4-.1-.6a7.9,7.9,0,0,1-2.6-6,6.4,6.4,0,0,1,.7-3.1L8.7,7c6.8,0,12.6,2.3,12.6,5.2s-1.9,3-4.2,4c-.5.2-.5.4-.5.6s.3.3.6.2c4-1.2,6.9-3.4,6.9-5.9S18.5,4.9,11.4,4.9ZM71.3,7v3l-1.8-.2c-3.9,0-6.5,2.6-6.5,6.8s2.5,6.5,6.5,6.5a15.1,15.1,0,0,0,5.3-.8V4.1a11.8,11.8,0,0,0-2.9,1.6A1.4,1.4,0,0,0,71.3,7Zm0,13.1a4.1,4.1,0,0,1-1.5.2c-2.3,0-3.2-1.5-3.2-3.7s.9-4,3.2-4l1.5.2Zm35.8.2c-1.7,0-2.9-1.4-2.9-3.8s1-3.8,2.9-3.8a5.9,5.9,0,0,1,2.3.4,6,6,0,0,1,1.2-2.4,7.5,7.5,0,0,0-3.9-.9c-3.9,0-6.1,2.7-6.1,6.7s2.3,6.6,6.2,6.6a8,8,0,0,0,3.9-.8,9.7,9.7,0,0,1-1.4-2.5A4.7,4.7,0,0,1,107.1,20.3ZM55.7,9.8a15.3,15.3,0,0,0-3.8.4,6.6,6.6,0,0,0,0,2.8,10.6,10.6,0,0,1,3.2-.4c1.8,0,2.7.7,2.7,2.2V15l-1.7-.2c-2.9,0-5.5,1.1-5.5,4s2.3,4.3,5.7,4.3a19.9,19.9,0,0,0,4.8-.7V15.1C61.1,11.6,59.2,9.9,55.7,9.8Zm2.1,10.5H56.3c-1.6,0-2.5-.5-2.5-1.6s.9-1.6,2.5-1.6h1.5ZM116.9,9.8c-3.9,0-6.1,2.7-6.1,6.7s2.3,6.6,6.1,6.6,6.1-2.6,6.1-6.6S120.8,9.8,116.9,9.8Zm0,10.5c-2,0-2.5-1.6-2.5-3.8s.5-3.9,2.5-3.9,2.6,1.6,2.6,3.9S118.8,20.3,116.9,20.3ZM82.8,9.8c-3.7,0-6,2.5-6,6.7s2.4,6.6,6.6,6.6a9.9,9.9,0,0,0,4-.7,6.2,6.2,0,0,0,0-2.7,11.8,11.8,0,0,1-3.6.6c-2,0-3.3-.8-3.6-2.8h7.9a9.9,9.9,0,0,0,.2-1.8C88.3,11.9,86.1,9.8,82.8,9.8Zm-2.6,5.1a2.5,2.5,0,0,1,2.6-2.4c1.6,0,2.2,1,2.2,2.4Zm16.1.4-1.5-.6c-.8-.4-1.2-.6-1.2-1.2s.7-1,1.6-1a11,11,0,0,1,3.3.6,5.7,5.7,0,0,0,0-2.6,8.3,8.3,0,0,0-3.8-.7C92,9.8,90,11.2,90,13.4s.8,3,3.2,4l1.1.4c1,.4,1.3.7,1.3,1.4s-1,1.1-1.8,1.1a9.9,9.9,0,0,1-3.8-.7,4.2,4.2,0,0,0,0,2.7,9.4,9.4,0,0,0,4.3.8c2.7,0,4.9-1.4,4.9-3.9S98.3,16.1,96.3,15.3Z\" fill=\"#E5173F\"/> </svg></div>";
     case "Banco do Brasil":return "<div style=\"width:40px;height:40px;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#F59E0B\"><svg version=\"1.1\" id=\"svg1\" width=\"214.62616\" height=\"30.067993\" viewBox=\"0 0 214.62616 30.067993\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:svg=\"http://www.w3.org/2000/svg\"> <defs id=\"defs1\"> <clipPath clipPathUnits=\"userSpaceOnUse\" id=\"clipPath40\"> <path d=\"M 0,1764.915 H 841.89 V 0 H 0 Z\" transform=\"translate(-621.74612,-1501.7504)\" id=\"path40\" /> </clipPath> <clipPath clipPathUnits=\"userSpaceOnUse\" id=\"clipPath42\"> <path d=\"M 0,1764.915 H 841.89 V 0 H 0 Z\" transform=\"translate(-652.59371,-1511.2587)\" id=\"path42\" /> </clipPath> </defs> <g id=\"layer-MC0\" transform=\"translate(-828.99481,-325.00214)\"> <path id=\"path39\" d=\"M 0,0 2.348,1.567 4.697,0 0,-3.133 Z m 22.553,16.288 -2.349,-1.567 -2.349,1.567 4.698,3.13 z m 0,-11.904 L 11.274,-3.133 0,4.384 13.39,13.312 15.739,11.746 4.933,4.542 11.511,0.155 14.564,2.191 12.216,3.759 17.855,7.517 Z M 0,11.901 11.274,19.418 22.553,11.901 9.16,2.973 6.814,4.542 17.618,11.746 11.042,16.13 7.985,14.094 10.337,12.528 4.697,8.769 Z\" style=\"fill:#465eff;fill-opacity:1;fill-rule:nonzero;stroke:none\" transform=\"matrix(1.3333333,0,0,-1.3333333,828.9948,350.8928)\" clip-path=\"url(#clipPath40)\" /> <path id=\"path41\" d=\"M 0,0 V 3.84 H 1.36 C 2.593,3.84 3.463,3.028 3.463,1.925 3.463,0.468 2.352,0.012 1.554,0.012 H 0.28 Z m 0.756,-2.3 h 0.482 c 1.838,0 2.421,-0.811 2.421,-2.142 0,-2.105 -1.744,-2.126 -2.516,-2.126 H 0 v 4.245 z m 21.423,-6.576 v 8.204 l 3.424,-8.204 h 3.69 v 12.3 h -2.655 v -7.952 l -3.33,7.952 h -3.782 v -12.3 z m 13.052,-0.362 c 2.72,0 4.306,1.077 4.306,4.431 h -3.091 c -0.039,-0.99 -0.053,-2.555 -1.215,-2.555 -1.314,0 -1.503,0.794 -1.503,4.607 0,3.941 0.3,4.603 1.447,4.603 0.824,0 1.194,-0.625 1.194,-2.291 h 3.072 c 0.114,2.693 -1.38,4.17 -4.341,4.17 -4.412,0 -4.54,-2.805 -4.54,-6.482 0,-3.7 -0.115,-6.483 4.671,-6.483 m -24.555,0.362 0.773,2.726 h 3.318 l 0.753,-2.726 h 3.279 l -3.693,12.3 h -3.752 l -3.771,-12.3 z m 3.601,4.616 h -2.378 l 1.133,5.034 z m 30.967,-3.102 c -1.401,0 -1.583,1.39 -1.583,4.607 0,3.214 0.182,4.603 1.583,4.603 1.402,0 1.583,-1.389 1.583,-4.603 0,-3.217 -0.181,-4.607 -1.583,-4.607 m 0,-1.876 c 4.789,0 4.789,3.197 4.789,6.483 0,3.319 0,6.482 -4.789,6.482 -4.789,0 -4.789,-3.163 -4.789,-6.482 0,-3.286 0,-6.483 4.789,-6.483 m 76.261,12.662 h -3.13 V -8.877 h 3.13 z m 8.617,-12.3 v 1.86 h -3.65 v 10.44 h -3.133 v -12.3 z M 82.817,-8.88 c 1.478,0 5.136,0.168 5.136,3.975 0,2.062 -0.644,3.5 -3.107,3.811 1.889,0.374 2.832,1.625 2.832,3.35 0,3.208 -2.189,3.893 -4.837,3.893 H 76.669 V -8.88 Z m -2.357,8.856 v 3.842 h 1.83 c 1.005,0 1.715,-0.811 1.715,-1.914 0,-1.458 -0.906,-1.918 -1.558,-1.918 h -1.036 z m 0.951,-2.297 h 0.782 c 1.496,0 1.971,-0.814 1.971,-2.146 0,-2.102 -1.421,-2.122 -2.049,-2.122 H 80.46 v 4.244 z m -24.86,3.866 h 1.271 c 1.712,0 1.712,-1.999 1.712,-4.274 C 59.534,-5.821 59.238,-7 57.74,-7 H 56.551 Z M 53.434,-8.876 h 4.674 c 4.903,0 4.581,4.341 4.581,6.238 0,3.846 -0.705,6.101 -4.469,6.101 h -4.786 z m 15.208,1.507 c -1.402,0 -1.583,1.384 -1.583,4.584 0,3.202 0.181,4.588 1.583,4.588 1.401,0 1.582,-1.386 1.582,-4.588 0,-3.2 -0.181,-4.584 -1.582,-4.584 m 0,-1.869 c 4.791,0 4.791,3.184 4.791,6.453 0,3.306 0,6.456 -4.791,6.456 -4.791,0 -4.791,-3.15 -4.791,-6.456 0,-3.269 0,-6.453 4.791,-6.453 m 35.726,4.972 h -2.371 l 1.132,5.034 z m 8.698,-4.61 c 2.06,0 4.147,0.274 4.147,3.46 0,3.677 -5.33,3.312 -5.33,5.645 0,0.851 0.519,1.313 1.397,1.313 h 2.853 v 1.892 h -4.01 c -3.295,0 -4.109,-1.487 -4.109,-3.412 0,-3.662 5.906,-3.575 5.906,-5.635 0,-0.836 -0.446,-1.398 -1.361,-1.398 h -4.225 l -3.135,10.437 h -3.749 l -3.468,-11.197 -2.176,4.814 c 1.595,0.298 2.23,1.307 2.234,3.163 0.008,2.096 -1.243,3.22 -3.185,3.22 H 88.988 V -8.875 h 3.208 v 10.41 h 1.062 c 0.908,0 1.693,-0.66 1.693,-1.868 0,-1.027 -0.512,-1.869 -1.337,-1.815 l -0.892,-0.013 2.919,-6.714 h 5.129 l 0.77,2.725 h 3.321 l 0.755,-2.725 z M 2.365,-8.877 c 1.473,0 5.134,0.165 5.134,3.974 0,2.061 -0.644,3.499 -3.107,3.813 1.886,0.373 2.834,1.621 2.834,3.348 0,3.206 -2.189,3.894 -4.839,3.894 H -3.785 V -8.877 Z\" style=\"fill:#465eff;fill-opacity:1;fill-rule:nonzero;stroke:none\" transform=\"matrix(1.3333333,0,0,-1.3333333,870.12493,338.21507)\" clip-path=\"url(#clipPath42)\" /> </g> </svg></div>";
@@ -1419,15 +1430,17 @@ function getMthParcs(y,m){
   });
 }
 function getMthParcTot(y,m){return getMthParcs(y,m).reduce((s,p)=>s+p.total/p.nparc,0)}
+// Despesa de cartão pesa no mês em que a fatura dela VENCE (é quando o dinheiro sai),
+// não no mês em que a fatura fecha.
+function txCartaoNoMes(t,y,m){
+  if(t.type!=='expense'||!t.cartaoId)return false;
+  const v=FaturaCore.mesVencimento(t.date,getCartao(t.cartaoId)||{fecha:1,venc:10});
+  return v.y===y&&v.m===m;
+}
 function despesasDoMes(y,m){
   const txsMes=S.tx.filter(t=>{const d=new Date(t.date+'T12:00');return d.getFullYear()===y&&d.getMonth()===m});
   const desp=txsMes.filter(t=>t.type==='expense'&&!t.cartaoId).reduce((s,t)=>s+t.val,0);
-  const despCard=S.tx.filter(t=>{
-    if(t.type!=='expense'||!t.cartaoId)return false;
-    const ct=getCartao(t.cartaoId);
-    const{stY,stM}=txBillingMonth(t,ct?(ct.fecha||1):1);
-    return stY===y&&stM===m;
-  }).reduce((s,t)=>s+t.val,0);
+  const despCard=S.tx.filter(t=>txCartaoNoMes(t,y,m)).reduce((s,t)=>s+t.val,0);
   const parcTot=getMthParcTot(y,m);
   return desp+despCard+parcTot;
 }
@@ -1503,9 +1516,9 @@ function faturaCartao(cid,y,m){
 }
 function getBillingYM(c){
   // Mês atual: mostra a fatura que precisa ser paga agora (a fechada, se ainda tem saldo;
-  // senão a aberta). Outro mês navegado: a fatura daquele mês.
+  // senão a aberta). Outro mês navegado: a fatura que vence naquele mês.
   const isCurrentMonth=curY===now.getFullYear()&&curM===now.getMonth();
-  if(!isCurrentMonth)return{fatY:curY,fatM:curM};
+  if(!isCurrentMonth){const f=FaturaCore.faturaQueVenceEm(curY,curM,c);return{fatY:f.y,fatM:f.m};}
   const f=FaturaCore.faturaAPagar(hojeStr(),c.fecha||1,(y,m)=>faturaRestante(c.id,y,m));
   return{fatY:f.y,fatM:f.m};
 }
@@ -1551,12 +1564,7 @@ function toggleHomeChart(){
 function renderHomeChart(){
   const el=document.getElementById('home-chart');
   const diretas=getMonthTx().filter(t=>t.type==='expense'&&!t.cartaoId);
-  const cartao=S.tx.filter(t=>{
-    if(t.type!=='expense'||!t.cartaoId)return false;
-    const ct=getCartao(t.cartaoId);
-    const{stY,stM}=txBillingMonth(t,ct?(ct.fecha||1):1);
-    return stY===curY&&stM===curM;
-  });
+  const cartao=S.tx.filter(t=>txCartaoNoMes(t,curY,curM));
   const despesas=[...diretas,...cartao];
   if(!despesas.length){el.innerHTML='';return;}
 
@@ -1628,7 +1636,7 @@ function updateHome(){
   const uCusto=rendasM.reduce((s,r)=>s+(r.custo||0),0);
   const uLiq=uBruto-uCusto;
   const desp=txs.filter(t=>t.type==='expense'&&!t.cartaoId).reduce((s,t)=>s+t.val,0);
-  const despCard=S.tx.filter(t=>{if(t.type!=='expense'||!t.cartaoId)return false;const ct=getCartao(t.cartaoId);const{stY,stM}=txBillingMonth(t,ct?(ct.fecha||1):1);return stY===curY&&stM===curM;}).reduce((s,t)=>s+t.val,0);
+  const despCard=S.tx.filter(t=>txCartaoNoMes(t,curY,curM)).reduce((s,t)=>s+t.val,0);
   const parcTot=getMthParcTot(curY,curM);
 
   // DISPONÍVEL NA CONTA: dinheiro real agora (independente do mês navegado)
@@ -1680,7 +1688,9 @@ function updateHome(){
   let alerts='';
   if(uBruto>0)alerts+=`<div class="alert alert-green" onclick="navTo('renda')" style="cursor:pointer">💰 ${rendasM.length} registro${rendasM.length>1?'s':''} de renda extra — líquido <strong>${fmt(uLiq)}</strong> ›</div>`;
   if(parcTot>0&&rendaFixa()>0){const pct=Math.round(parcTot/rendaFixa()*100);alerts+=`<div class="alert alert-amber" onclick="navTo('parc')" style="cursor:pointer">💳 <strong>${fmt(parcTot)}</strong> em parcelas (${pct}% da renda) ›</div>`;}
-  S.cartoes.forEach(c=>{const u=limiteUsado(c.id);if(c.limite>0&&u/c.limite>=0.8){const b=getBanco(c.bancoId);alerts+=`<div class="alert alert-red" onclick="navToCartao(${c.bancoId})" style="cursor:pointer">⚠️ ${b?b.nome+' ':''}<strong>${c.nome}</strong> — ${Math.round(u/c.limite*100)}% do limite ›</div>`;}});
+  S.cartoes.forEach(c=>{const b=getBanco(c.bancoId);if(LimiteCore.compartilha(b))return;const u=limiteUsado(c.id);if(c.limite>0&&u/c.limite>=0.8){alerts+=`<div class="alert alert-red" onclick="navToCartao(${c.bancoId})" style="cursor:pointer">⚠️ ${b?b.nome+' ':''}<strong>${c.nome}</strong> — ${Math.round(u/c.limite*100)}% do limite ›</div>`;}});
+  // limite dividido: um aviso só para o banco inteiro
+  S.bancos.filter(b=>LimiteCore.compartilha(b)).forEach(b=>{const cs=S.cartoes.filter(c=>c.bancoId===b.id);if(!cs.length)return;const v=LimiteCore.visaoBanco(b,cs,limiteUsado);if(v.usado/v.limite>=0.8)alerts+=`<div class="alert alert-red" onclick="navToCartao(${b.id})" style="cursor:pointer">⚠️ <strong>${b.nome}</strong> — ${Math.round(v.usado/v.limite*100)}% do limite dividido ›</div>`;});
   S.cartoes.forEach(c=>{
     const mesAtual=curY===now.getFullYear()&&curM===now.getMonth();
     if(!mesAtual)return;
@@ -1754,8 +1764,8 @@ function addLongPress(el,cb){
   el.addEventListener('mouseleave',cancel);
 }
 function renderCartoes(){
-  const tL=S.cartoes.reduce((s,c)=>s+c.limite,0);
-  const tU=S.cartoes.reduce((s,c)=>s+limiteUsado(c.id),0);
+  const tot=LimiteCore.totais(S.bancos,S.cartoes,limiteUsado); // limite dividido conta uma vez só
+  const tL=tot.limite,tU=tot.usado;
   const tFat=S.cartoes.reduce((s,c)=>s+faturaDoMes(c.id),0);
   document.getElementById('cartoes-resumo').innerHTML=`<div class="stat-grid" style="padding:0">
     <div class="stat"><div class="sl">Limite total</div><div class="sv" style="color:var(--blue)">${fmt(tL)}</div></div>
@@ -1770,16 +1780,17 @@ function renderCartoes(){
     const cs=S.cartoes.filter(c=>c.bancoId===banco.id);
     const ini=banco.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
     const fatTotal=cs.reduce((s,c)=>{const{fatY,fatM}=getBillingYM(c);return s+faturaCartao(c.id,fatY,fatM);},0);
-    const limTotal=cs.reduce((s,c)=>s+c.limite,0);
-    const usadoTotal=cs.reduce((s,c)=>s+limiteUsado(c.id),0);
+    const vb=LimiteCore.visaoBanco(banco,cs,limiteUsado);
+    const limTotal=vb.limite,usadoTotal=vb.usado;
     const pctTotal=limTotal>0?Math.min(100,Math.round(usadoTotal/limTotal*100)):0;
     const fatChipC=pctTotal>=80?'rgba(248,113,113,.15)':pctTotal>=60?'rgba(251,191,36,.15)':'rgba(255,255,255,.06)';
     const fatChipT=pctTotal>=80?'var(--red)':pctTotal>=60?'var(--amber)':'var(--text2)';
 
     const cartaoCards=cs.map(c=>{
       const{fatY,fatM}=getBillingYM(c);
-      const usado=limiteUsado(c.id);
-      const pct=c.limite>0?Math.min(100,Math.round(usado/c.limite*100)):0;
+      const vc=LimiteCore.visaoCartao(c,banco,cs,limiteUsado); // com limite dividido, soma o uso dos outros cartões do banco
+      const usado=vc.usado;
+      const pct=vc.limite>0?Math.min(100,Math.round(usado/vc.limite*100)):0;
       const barC=pct>=80?'#f87171':pct>=60?'#fbbf24':banco.cor;
       const fat=faturaCartao(c.id,fatY,fatM);
       const vencISO=FaturaCore.vencimento(fatY,fatM,c);
@@ -1802,11 +1813,12 @@ function renderCartoes(){
         </div>
         <div style="margin-bottom:10px">
           <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
-            <span style="color:var(--text2)">Limite usado</span>
+            <span style="color:var(--text2)">${vc.compartilhado?'Limite usado (dividido)':'Limite usado'}</span>
             <span style="color:${barC};font-weight:600">${pct}% — ${fmt(usado)}</span>
           </div>
           <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%;background:${barC};color:${barC}"></div></div>
-          <div style="font-size:11px;color:var(--text3)">Disponível: ${fmt(c.limite-usado)} de ${fmt(c.limite)}</div>
+          <div style="font-size:11px;color:var(--text3)">Disponível: ${fmt(vc.disponivel)} de ${fmt(vc.limite)}</div>
+          ${vc.compartilhado?`<div style="font-size:11px;color:var(--text3);margin-top:2px">Limite dividido entre os cartões do ${banco.nome} · este cartão usa ${fmt(vc.usadoCartao)}</div>`:''}
         </div>
         <div class="cc-fatura">
           <div>
@@ -1832,7 +1844,7 @@ function renderCartoes(){
         <div class="banco-info">
           <div class="banco-nome2">${banco.nome}</div>
           <div class="banco-sub">
-            <span>${cs.length} cartão${cs.length!==1?'s':''}</span>
+            <span>${cs.length} ${cs.length!==1?'cartões':'cartão'}</span>
             ${fatTotal>0?`<span class="banco-fatura-chip" style="background:${fatChipC};color:${fatChipT}">Fatura: ${fmt(fatTotal)}</span>`:'<span style="color:var(--green);font-size:11px;font-weight:600">Sem fatura</span>'}
           </div>
         </div>
@@ -2121,13 +2133,8 @@ function renderTxPage(){
         all.push({date:t.date,html:txRow(c.ic,c.c+'22',t.desc,c.n,'-'+fmt(t.val),'var(--red)',ds,t.id,'tx')});
       });
     }
-    // Despesas de cartão: pelo mês de faturamento (igual à aba Cartões)
-    S.tx.filter(t=>{
-      if(t.type!=='expense'||!t.cartaoId)return false;
-      const ct=getCartao(t.cartaoId);
-      const{stY,stM}=txBillingMonth(t,ct?(ct.fecha||1):1);
-      return stY===curY&&stM===curM;
-    }).forEach(t=>{
+    // Despesas de cartão: pelo mês em que a fatura vence (igual à tela Início)
+    S.tx.filter(t=>txCartaoNoMes(t,curY,curM)).forEach(t=>{
       const c=getCat(t.cat);const ct=getCartao(t.cartaoId);const b=ct?getBanco(ct.bancoId):null;
       const sub='💳 '+(b?b.nome+' · ':'')+ct.nome;
       const d=new Date(t.date+'T12:00');
@@ -2169,7 +2176,7 @@ function renderTxPage(){
   if(_filtroTx==='todos'||_filtroTx==='despesa'){
     const despesas=[
       ...txs.filter(t=>t.type==='expense'&&!t.cartaoId),
-      ...S.tx.filter(t=>{if(t.type!=='expense'||!t.cartaoId)return false;const ct=getCartao(t.cartaoId);const{stY,stM}=txBillingMonth(t,ct?(ct.fecha||1):1);return stY===curY&&stM===curM;})
+      ...S.tx.filter(t=>txCartaoNoMes(t,curY,curM))
     ];
     if(despesas.length){
       const porCat={};
@@ -2938,15 +2945,26 @@ function openEditBanco(id){
   const b=S.bancos.find(x=>x.id===id);if(!b)return;
   document.getElementById('eb-nome').value=b.nome;
   document.getElementById('eb-cor').value=b.cor||'#8b5cf6';
+  document.getElementById('eb-comp').checked=LimiteCore.compartilha(b);
+  setMoneyVal('eb-limite',b.limiteCompartilhado||0);
+  toggleLimiteComp();
   document.getElementById('ov-edit-banco').classList.add('open');
+  setTimeout(initMasks,50);
+}
+function toggleLimiteComp(){
+  document.getElementById('eb-comp-wrap').style.display=document.getElementById('eb-comp').checked?'block':'none';
 }
 function saveEditBanco(){
   const b=S.bancos.find(x=>x.id===_editId);if(!b)return;
   const nome=document.getElementById('eb-nome').value.trim();
   if(!nome){showToast('Informe o nome do banco.');return;}
+  const comp=document.getElementById('eb-comp').checked;
+  const limComp=getMoneyVal('eb-limite');
+  if(comp&&!(limComp>0)){showToast('Informe o limite do banco.');return;}
   b.nome=nome;
   b.cor=document.getElementById('eb-cor').value;
-  saveState();closeOv('ov-edit-banco');renderCartoes();
+  if(comp)b.limiteCompartilhado=limComp;else delete b.limiteCompartilhado;
+  saveState();closeOv('ov-edit-banco');renderCartoes();updateHome(); // avisos de limite da Início dependem disto
 }
 function deleteEditBanco(){
   if(S.cartoes.some(c=>c.bancoId===_editId)){
@@ -3163,6 +3181,47 @@ if(isFirstTime()){
 }else{
   enterApp();
 }
+
+// ── BOTÃO VOLTAR DO CELULAR ────────────────────────
+// Sem isto o "voltar" fecha o app em qualquer tela. Guardamos uma entrada extra no
+// histórico: o voltar cai nela (popstate), a gente decide o que fazer e arma de novo.
+// Ordem: janela aberta → fecha a janela; começo (onboarding) → passo anterior;
+// outra aba → Início; já na Início → deixa sair.
+const Voltar={
+  armado:!!(history.state&&history.state.ca==='trava'), // recarregou a página já armado
+  armar(){
+    if(this.armado)return;
+    try{history.pushState({ca:'trava'},'');this.armado=true;}catch(e){}
+  },
+  // true = o voltar foi usado dentro do app (não sai)
+  tratar(){
+    if(document.getElementById('lock-screen').classList.contains('open'))return false;
+    const abertas=[...document.querySelectorAll('.ov.open')];
+    if(abertas.length){
+      const id=abertas[abertas.length-1].id;
+      if(id==='ov-escolha-sync')return true; // precisa escolher: o voltar não fecha
+      if(id==='ov-novidades')closeNovidades();else closeOv(id);
+      return true;
+    }
+    if(document.getElementById('onboarding').style.display!=='none'){
+      if(onbStep>1){goStep(onbStep-1);return true;}
+      return false;
+    }
+    const pg=document.querySelector('.pg.active');
+    if(pg&&pg.id!=='pg-home'){navTo('home');window.scrollTo(0,0);return true;}
+    return false;
+  }
+};
+window.addEventListener('popstate',()=>{
+  Voltar.armado=false;
+  if(Voltar.tratar()){Voltar.armar();return;}
+  // Nada para fechar: o próximo voltar sai do app (um toque na tela arma de novo).
+  if(document.getElementById('main-app').style.display!=='none')showToast('Toque em voltar de novo para sair');
+});
+// Arma já na abertura e de novo a cada toque (o navegador só respeita a entrada
+// extra do histórico depois que a pessoa interage com a página).
+['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev,()=>Voltar.armar(),{capture:true,passive:true}));
+Voltar.armar();
 let _bgAt=0;
 function _onHide(){_bgAt=Date.now();}
 function _onShow(){
