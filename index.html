@@ -935,7 +935,13 @@ body::before{
       </select>
     </div>
     <div class="fg" id="fg-cartao" style="display:none"><label>Cartão usado</label><select id="f-cartao"></select></div>
-    <div class="fg" id="fg-parcelas" style="display:none"><label>Nº de parcelas</label><input id="f-parcelas" type="number" inputmode="numeric" min="1" value="1" placeholder="1"/></div>
+    <div id="fg-parcelas" style="display:none">
+      <div class="row2">
+        <div class="fg"><label>Nº de parcelas</label><input id="f-parcelas" type="number" inputmode="numeric" min="1" value="1" placeholder="1" oninput="toggleCartaoPagas()"/></div>
+        <div class="fg" id="fg-cpagas" style="display:none"><label>Já paguei</label><input id="f-cpagas" type="number" inputmode="numeric" min="0" value="0" placeholder="0"/></div>
+      </div>
+      <div id="f-cpagas-hint" style="display:none;font-size:12px;color:var(--text3);margin:-6px 0 13px">Compra antiga? Ponha o valor total, a data da compra e quantas parcelas já pagou — o app lança só as que faltam.</div>
+    </div>
     <div id="fg-parc-sub" style="display:none">
       <div class="fg"><label>Tipo</label><select id="f-parc-tipo"><option value="financiamento">🏦 Financiamento</option><option value="boleto">🧾 Boleto</option><option value="outro">📦 Outro</option></select></div>
       <div class="row2">
@@ -1444,9 +1450,16 @@ function despesasDoMes(y,m){
   const parcTot=getMthParcTot(y,m);
   return desp+despCard+parcTot;
 }
+// Quantos lançamentos de despesa pesaram num mês (mesma regra de despesasDoMes).
+function qtdDespesasDoMes(y,m){
+  const diretas=S.tx.filter(t=>{if(t.type!=='expense'||t.cartaoId)return false;const d=new Date(t.date+'T12:00');return d.getFullYear()===y&&d.getMonth()===m}).length;
+  return diretas+S.tx.filter(t=>txCartaoNoMes(t,y,m)).length+getMthParcs(y,m).length;
+}
+const MIN_LANC_INSIGHT=10; // menos que isso no mês passado = quem acabou de começar; comparar engana
 function calcInsight(){
   const py=curM===0?curY-1:curY;
   const pm=curM===0?11:curM-1;
+  if(qtdDespesasDoMes(py,pm)<MIN_LANC_INSIGHT)return null;
   const atual=despesasDoMes(curY,curM);
   const anterior=despesasDoMes(py,pm);
   if(anterior<=0)return null;
@@ -2482,8 +2495,16 @@ function toggleForma(){
   document.getElementById('fg-parcelas').style.display=f==='cartao'?'block':'none';
   document.getElementById('fg-parc-sub').style.display=f==='parcelado'?'block':'none';
   if(f!=='cartao'){document.getElementById('f-cartao').value='';document.getElementById('f-parcelas').value='1';}
+  toggleCartaoPagas();
   document.getElementById('f-date-label').textContent=f==='parcelado'?'Mês da 1ª parcela':'Data';
   if(f==='parcelado')calcParcPrev();
+}
+// "Já paguei" só faz sentido em compra parcelada (2 ou mais parcelas)
+function toggleCartaoPagas(){
+  const parcelado=(parseInt(document.getElementById('f-parcelas').value)||1)>1;
+  document.getElementById('fg-cpagas').style.display=parcelado?'block':'none';
+  document.getElementById('f-cpagas-hint').style.display=parcelado?'block':'none';
+  if(!parcelado)document.getElementById('f-cpagas').value='0';
 }
 function calcParcPrev(){
   const total=getMoneyVal('f-val');
@@ -2510,6 +2531,7 @@ function openTxModal(tp){
   setTp(S.txType);fillCartaoSel();
   document.getElementById('f-forma').value='avista';
   document.getElementById('f-parcelas').value='1';
+  document.getElementById('f-cpagas').value='0';
   document.getElementById('f-nparc').value='';
   document.getElementById('f-pagas').value='0';
   document.getElementById('f-parc-tipo').value='financiamento';
@@ -2884,20 +2906,24 @@ function saveTx(){
   const cartaoId=forma==='cartao'?parseInt(document.getElementById('f-cartao').value)||null:null;
   if(forma==='cartao'&&!cartaoId){showToast('Selecione o cartão usado.');return;}
   const parcelas=cartaoId?parseInt(document.getElementById('f-parcelas').value)||1:1;
+  let dataNav=date;
   if(parcelas>72){showToast('Máximo de 72 parcelas no cartão.');return;}
   if(parcelas>1){
+    const pagas=parseInt(document.getElementById('f-cpagas').value)||0;
+    if(pagas<0||pagas>=parcelas){showToast('"Já paguei" tem que ser menor que o nº de parcelas.');return;}
     const gid=proxId();
-    const datas=ParcelsCore.datasParcelas(date,parcelas);
-    const valores=ParcelsCore.valoresParcelas(val,parcelas);
-    for(let i=0;i<parcelas;i++){
-      S.tx.push({id:proxId(),type:S.txType,desc:`${desc} (${i+1}/${parcelas})`,val:valores[i],cat,date:datas[i],cartaoId,parcelaGrupoId:gid,parcelaTot:parcelas,parcelaNum:i+1});
-    }
+    // compra já em andamento: lança só as parcelas que faltam, com o número certo
+    const restantes=ParcelsCore.parcelasRestantes(date,val,parcelas,pagas);
+    dataNav=restantes[0].date; // a tela vai para o mês da próxima parcela, não o da compra antiga
+    restantes.forEach(p=>{
+      S.tx.push({id:proxId(),type:S.txType,desc:`${desc} (${p.num}/${parcelas})`,val:p.val,cat,date:p.date,cartaoId,parcelaGrupoId:gid,parcelaTot:parcelas,parcelaNum:p.num});
+    });
   }else{
     S.tx.push({id:proxId(),type:S.txType,desc,val,cat,date,cartaoId});
   }
   saveState();closeOv('ov-tx');
-  document.getElementById('f-parcelas').value='1';
-  const d=new Date(date+'T12:00');curY=d.getFullYear();curM=d.getMonth();updLbl();updateHome();
+  document.getElementById('f-parcelas').value='1';document.getElementById('f-cpagas').value='0';
+  const d=new Date(dataNav+'T12:00');curY=d.getFullYear();curM=d.getMonth();updLbl();updateHome();
   const pg=document.querySelector('.pg.active');if(pg&&pg.id==='pg-tx')renderTxPage();if(pg&&pg.id==='pg-cartoes')renderCartoes();
 }
 function saveRenda(){

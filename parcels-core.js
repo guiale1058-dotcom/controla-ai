@@ -60,5 +60,13 @@
     for (let i = 0; i < n; i++) out.push((i === n - 1 ? tc - base * (n - 1) : base) / 100);
     return out;
   }
-  return { parcelaMensal, validarParcelamento, parcelaRows, datasParcelas, valoresParcelas };
+  // Compra parcelada que já está no meio: só as parcelas que faltam, com o número certo.
+  // dataISO = data da compra (1ª parcela); total = valor total; pagas = quantas já foram.
+  function parcelasRestantes(dataISO, total, n, pagas) {
+    const datas = datasParcelas(dataISO, n), valores = valoresParcelas(total, n);
+    const out = [];
+    for (let i = Math.max(0, pagas || 0); i < n; i++) out.push({ num: i + 1, date: datas[i], val: valores[i] });
+    return out;
+  }
+  return { parcelaMensal, validarParcelamento, parcelaRows, datasParcelas, valoresParcelas, parcelasRestantes };
 });

@@ -67,3 +67,21 @@ test('valoresParcelas: soma sempre bate com o total (centavo vai na ultima)', ()
   const v = PC.valoresParcelas(89.9, 7);
   assert.strictEqual(Math.round(v.reduce((s, x) => s + x, 0) * 100), 8990);
 });
+
+test('parcelasRestantes: compra ja em andamento lanca so as que faltam, com o numero certo', () => {
+  // A Oficina: 6x de 90 comprada em 05/08, 2 ja pagas -> faltam da 3 a 6
+  assert.deepStrictEqual(PC.parcelasRestantes('2026-08-05', 540, 6, 2), [
+    { num: 3, date: '2026-10-05', val: 90 },
+    { num: 4, date: '2026-11-05', val: 90 },
+    { num: 5, date: '2026-12-05', val: 90 },
+    { num: 6, date: '2027-01-05', val: 90 },
+  ]);
+});
+
+test('parcelasRestantes: sem nenhuma paga devolve todas; centavo que sobra fica na ultima', () => {
+  const r = PC.parcelasRestantes('2026-10-01', 100, 3, 0);
+  assert.deepStrictEqual(r.map(x => x.num), [1, 2, 3]);
+  assert.deepStrictEqual(r.map(x => x.val), [33.33, 33.33, 33.34]);
+  // com 2 pagas sobra so a ultima, que carrega o centavo
+  assert.deepStrictEqual(PC.parcelasRestantes('2026-10-01', 100, 3, 2), [{ num: 3, date: '2026-12-01', val: 33.34 }]);
+});
