@@ -239,6 +239,13 @@ body::before{
   transition:all .2s;font-weight:500;
 }
 .add-btn:hover{color:var(--purple);border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.05)}
+/* "Adicionar banco": botão cheio, fixo acima da lista (os bancos novos entram embaixo) */
+.add-banco-btn,.add-banco-btn:hover{
+  justify-content:center;padding:14px;border:none;color:#fff;text-shadow:none;
+  font-size:15px;font-weight:700;background:linear-gradient(135deg,#1d4ed8,#0ea5e9);
+  box-shadow:0 4px 16px rgba(37,99,235,.3);
+}
+.add-banco-btn:active{transform:scale(.98);opacity:.9}
 
 /* ── PARCELAMENTOS ──────────────────────────── */
 .parc-card{
@@ -722,8 +729,8 @@ body::before{
   <div id="pg-cartoes" class="pg">
     <div class="hdr"><h1>Cartões</h1></div>
     <div id="cartoes-resumo" class="sec"></div>
+    <button class="add-btn add-banco-btn" onclick="openBancoModal()">+ Adicionar banco</button>
     <div id="bancos-lista"></div>
-    <button class="add-btn" onclick="openBancoModal()">+ Adicionar banco</button>
   </div>
 
   <!-- RENDA EXTRA -->
@@ -1331,8 +1338,11 @@ let curY=now.getFullYear(),curM=now.getMonth();
 // ── NOVIDADES (aviso no 1º acesso após atualização) ──
 // Para avisar de uma nova atualização: suba APP_VERSION e adicione
 // um bloco novo no TOPO de NOVIDADES com essa mesma versão e os itens.
-const APP_VERSION=27;
+const APP_VERSION=28;
 const NOVIDADES=[
+  {v:28,itens:[
+    'Na aba Cartões, "Adicionar banco" virou um botão de verdade e fica sempre no topo da lista',
+  ]},
   {v:27,itens:[
     'Dois cartões com o mesmo limite? Edite o banco e marque "Os cartões deste banco dividem o mesmo limite"',
     'As despesas de cartão agora contam no mês em que a fatura vence — é o que você paga de verdade naquele mês',
