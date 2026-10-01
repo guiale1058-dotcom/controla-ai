@@ -1342,6 +1342,7 @@ const APP_VERSION=28;
 const NOVIDADES=[
   {v:28,itens:[
     'Na aba Cartões, "Adicionar banco" virou um botão de verdade e fica sempre no topo da lista',
+    'No computador, a tecla Esc fecha a janela aberta e volta para o Início',
   ]},
   {v:27,itens:[
     'Dois cartões com o mesmo limite? Edite o banco e marque "Os cartões deste banco dividem o mesmo limite"',
@@ -3265,6 +3266,9 @@ window.addEventListener('popstate',()=>{
 // extra do histórico depois que a pessoa interage com a página).
 ['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev,()=>Voltar.armar(),{capture:true,passive:true}));
 Voltar.armar();
+// No computador, a tecla Esc faz o mesmo caminho do voltar do celular (fecha a janela,
+// depois vai para a Início) — só que nunca sai do app.
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&Voltar.tratar())e.preventDefault();});
 let _bgAt=0;
 function _onHide(){_bgAt=Date.now();}
 function _onShow(){
